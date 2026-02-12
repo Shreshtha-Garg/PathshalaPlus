@@ -36,10 +36,11 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// --- 2. ADD A NEW STUDENT (Secured) ---
+// --- 2. ADD STUDENT (Full Professional Profile) ---
 router.post('/add-student', protect, async (req, res) => {
   try {
     await connectToDatabase(); 
+    // Check for duplicate SrNo or Mobile
     const existingStudent = await Student.findOne({ 
       $or: [{ srNo: req.body.srNo }, { mobile: req.body.mobile }] 
     });
@@ -47,17 +48,38 @@ router.post('/add-student', protect, async (req, res) => {
     if (existingStudent) {
       return res.status(400).json({ message: "Student with this SR No. or Mobile already exists." });
     }
+
     const newStudent = new Student(req.body);
     await newStudent.save();
     
     res.status(201).json({ message: "Student Added Successfully!" });
 
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Error adding student", error: error.message });
   }
 });
 
-// --- 3. POST A NOTICE / HOMEWORK (Secured) ---
+// --- 3. GET ALL STUDENTS (For Class List) --- 
+// NEW ROUTE
+router.get('/students', protect, async (req, res) => {
+  try {
+    await connectToDatabase();
+    const { classFilter } = req.query; // Optional: ?classFilter=10th-A
+    
+    let query = {};
+    if (classFilter) {
+      query.class = classFilter;
+    }
+
+    const students = await Student.find(query).select('-password').sort({ class: 1, srNo: 1 });
+    res.json(students);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching students" });
+  }
+});
+
+// --- 4. POST NOTICE / HOMEWORK / MATERIAL ---
 router.post('/post-notice', protect, async (req, res) => {
   try {
     await connectToDatabase();
@@ -66,20 +88,34 @@ router.post('/post-notice', protect, async (req, res) => {
     const newPost = new Post({
       title,
       description,
-      type,
+      type, // 'Notice', 'Homework', 'Material'
       targetClass,
       attachmentUrl
     });
     
     await newPost.save();
-    res.status(201).json({ message: "Notice Posted Successfully!" });
+    res.status(201).json({ message: "Posted Successfully!" });
 
   } catch (error) {
-    res.status(500).json({ message: "Error posting notice", error: error.message });
+    res.status(500).json({ message: "Error posting content" });
   }
 });
 
-// --- 4. VIEW SUBMISSIONS (Secured) ---
+// --- 5. GET TEACHER'S POSTS (For 'Check Homework' List) ---
+// NEW ROUTE
+router.get('/posts', protect, async (req, res) => {
+  try {
+    await connectToDatabase();
+    // In a real app, you might filter by 'createdBy'. 
+    // For now, we return all posts so the Admin can manage everything.
+    const posts = await Post.find().sort({ createdAt: -1 });
+    res.json(posts);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching posts" });
+  }
+});
+
+// --- 6. VIEW SUBMISSIONS FOR A SPECIFIC POST ---
 router.get('/submissions/:postId', protect, async (req, res) => {
   try {
     await connectToDatabase();
@@ -93,46 +129,25 @@ router.get('/submissions/:postId', protect, async (req, res) => {
   }
 });
 
-// --- 5. CREATE NEW TEACHER (Admin Only) ---
-router.post('/create-teacher', protect, admin, async (req, res) => {
+// --- 7. FORGOT PASSWORD (Basic Implementation) ---
+// NEW ROUTE
+router.post('/forgot-password', async (req, res) => {
   try {
-    const { name, email, password, mobile, role } = req.body;
-    const teacherExists = await Teacher.findOne({ email });
-    if (teacherExists) return res.status(400).json({ message: "Teacher already exists" });
+    await connectToDatabase();
+    const { email } = req.body;
+    const teacher = await Teacher.findOne({ email });
 
-    const teacher = await Teacher.create({ name, email, password, mobile, role: role || 'Teacher' });
-    res.status(201).json({ message: "Teacher created successfully" });
+    if (!teacher) {
+      return res.status(404).json({ message: "Email not found" });
+    }
+
+    // Since we don't have an SMTP server, we will return a mock success
+    // In production, send an email here.
+    res.json({ message: "Password reset link sent to email (Mock)" });
+
   } catch (error) {
-    res.status(500).json({ message: "Error creating teacher" });
+    res.status(500).json({ message: "Server error" });
   }
 });
-
-// --- 6. DELETE TEACHER (Admin Only) ---
-router.delete('/delete-teacher/:id', protect, admin, async (req, res) => {
-  try {
-    await Teacher.findByIdAndDelete(req.params.id);
-    res.json({ message: "Teacher removed" });
-  } catch (error) {
-    res.status(500).json({ message: "Error deleting teacher" });
-  }
-});
-
-// --- 7. CREATE INITIAL ADMIN (One-time setup) ---
-// router.post('/create-admin', async (req, res) => {
-//   try {
-//     await connectToDatabase();
-//     const newTeacher = new Teacher({
-//       name: "Prashant Chaturvedi",
-//       email: "pathshalaplus.app@gmail.com", 
-//       password: "Pathshala+pass", 
-//       mobile: "9876543210",
-//       role: "Admin"
-//     });
-//     await newTeacher.save();
-//     res.json({ message: "Admin Account Created!" });
-//   } catch (error) {
-//     res.json({ error: error.message });
-//   }
-// });
 
 export default router;
