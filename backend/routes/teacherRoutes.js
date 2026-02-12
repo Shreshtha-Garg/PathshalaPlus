@@ -19,7 +19,7 @@ router.post('/login', async (req, res) => {
     await connectToDatabase();
     const { email, password } = req.body;
     const teacher = await Teacher.findOne({ email });
-
+    console.log("Login attempt for email:", email);
     if (!teacher || teacher.password !== password) {
        return res.status(401).json({ message: "Invalid Admin Credentials" });
     }

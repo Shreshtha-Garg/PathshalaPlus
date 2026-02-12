@@ -1,274 +1,447 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { 
+  View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, Platform 
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
 import api from '../../services/api';
 import colors from '../../constants/colors';
-import { PremiumInput, PremiumButton, PremiumSelect, PremiumDatePicker } from '../../components/PremiumComponents';
-import MainLayout from '../../components/MainLayout';
+import { 
+  PremiumInput, PremiumDatePicker, PremiumSelect, PremiumButton 
+} from '../../components/PremiumComponents';
 
 const AddStudentScreen = ({ navigation }) => {
-  const [loading, setLoading] = useState(false);
-  const [submitError, setSubmitError] = useState('');
-
+  // Form State
   const [formData, setFormData] = useState({
-    name: '', mobile: '', class: '', srNo: '',
-    fatherName: '', fatherAadharNo: '',
-    motherName: '', motherAadharNo: '',
-    dob: '', address: '', aadharNo: '',
-    category: '', rationCardType: '', rationCardNo: '',
-    bankName: '', bankAccountNo: '', bankIfsc: ''
+    // Academic
+    srNo: '',
+    name: '',
+    mobile: '',
+    password: '',
+    class: '',
+    
+    // Parents
+    fatherName: '',
+    fatherAadharNo: '',
+    motherName: '',
+    motherAadharNo: '',
+    
+    // Personal
+    dob: '',
+    address: '',
+    aadharNo: '',
+    category: '',
+    
+    // Bank & Official
+    rationCardType: '',
+    rationCardNo: '',
+    bankName: '',
+    bankAccountNo: '',
+    bankIfsc: '',
   });
 
   const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
 
-  const CATEGORY_OPTIONS = ['Gen', 'SC', 'ST', 'OBC', 'EWS'];
-  const RATION_OPTIONS = ['APL', 'BPL', 'Antyodaya', 'Annapurna', 'Priority', 'None'];
-
-  const handleChange = (field, value) => {
+  // Update form field
+  const updateField = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) setErrors(prev => ({ ...prev, [field]: false }));
-    setSubmitError('');
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: false }));
+    }
   };
 
-  const handleAddStudent = async () => {
-    let newErrors = {};
-    let errorMsg = '';
+  // Validation
+  const validateForm = () => {
+    const newErrors = {};
 
-    const requiredFields = [
-      'name', 'mobile', 'class', 'srNo', 
-      'fatherName', 'motherName', 'address', 'aadharNo',
-      'fatherAadharNo', 'motherAadharNo', 'dob',
-      'category', 'rationCardType'
-    ];
+    // Required fields
+    if (!formData.srNo) newErrors.srNo = true;
+    if (!formData.name) newErrors.name = true;
+    if (!formData.mobile) newErrors.mobile = true;
+    if (!formData.password) newErrors.password = true;
+    if (!formData.class) newErrors.class = true;
+    if (!formData.dob) newErrors.dob = true;
+    if (!formData.category) newErrors.category = true;
 
-    requiredFields.forEach(field => {
-      if (!formData[field]) newErrors[field] = true;
-    });
-
-    if (formData.rationCardType && formData.rationCardType !== 'None' && !formData.rationCardNo) {
-      newErrors['rationCardNo'] = true;
-    }
-
-    // STRICT LENGTH CHECKS
+    // Mobile validation (10 digits)
     if (formData.mobile && formData.mobile.length !== 10) {
-      newErrors['mobile'] = true;
-      errorMsg = 'Mobile number must be exactly 10 digits.';
+      newErrors.mobile = true;
+      Alert.alert('Invalid Mobile', 'Mobile number must be exactly 10 digits.');
+      return false;
     }
+
+    // Aadhar validation (12 digits)
     if (formData.aadharNo && formData.aadharNo.length !== 12) {
-      newErrors['aadharNo'] = true;
-      errorMsg = 'Student Aadhar must be exactly 12 digits.';
+      newErrors.aadharNo = true;
+      Alert.alert('Invalid Aadhar', 'Aadhar number must be exactly 12 digits.');
+      return false;
     }
+
     if (formData.fatherAadharNo && formData.fatherAadharNo.length !== 12) {
-      newErrors['fatherAadharNo'] = true;
-      errorMsg = 'Father Aadhar must be exactly 12 digits.';
+      newErrors.fatherAadharNo = true;
+      Alert.alert('Invalid Aadhar', 'Father\'s Aadhar must be 12 digits.');
+      return false;
     }
+
     if (formData.motherAadharNo && formData.motherAadharNo.length !== 12) {
-      newErrors['motherAadharNo'] = true;
-      errorMsg = 'Mother Aadhar must be exactly 12 digits.';
+      newErrors.motherAadharNo = true;
+      Alert.alert('Invalid Aadhar', 'Mother\'s Aadhar must be 12 digits.');
+      return false;
     }
+
+    // IFSC validation (11 characters)
     if (formData.bankIfsc && formData.bankIfsc.length !== 11) {
-      newErrors['bankIfsc'] = true;
-      errorMsg = 'IFSC Code must be exactly 11 characters.';
+      newErrors.bankIfsc = true;
+      Alert.alert('Invalid IFSC', 'IFSC code must be exactly 11 characters.');
+      return false;
     }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-      setSubmitError(errorMsg || 'Please fill the required fields correctly.');
-      return;
+      Alert.alert('Missing Fields', 'Please fill all required fields correctly.');
+      return false;
     }
+
+    return true;
+  };
+
+  // Submit
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
 
     setLoading(true);
     try {
-      await api.post('/teacher/add-student', {
-        ...formData,
-        password: '123456'
-      });
-
-      setFormData({
-        name: '', mobile: '', class: '', srNo: '',
-        fatherName: '', fatherAadharNo: '',
-        motherName: '', motherAadharNo: '',
-        dob: '', address: '', aadharNo: '',
-        category: '', rationCardType: '', rationCardNo: '',
-        bankName: '', bankAccountNo: '', bankIfsc: ''
-      });
-      setSubmitError('Success! Student admitted.'); 
+      await api.post('/teacher/add-student', formData);
+      
+      Alert.alert(
+        'Success!',
+        'Student admission completed successfully.',
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      );
 
     } catch (error) {
-      setSubmitError(error.response?.data?.message || 'Could not add student.');
-    } finally {
       setLoading(false);
+      const msg = error.response?.data?.message || 'Failed to add student. Please try again.';
+      Alert.alert('Error', msg);
     }
   };
 
-  const SectionHeader = ({ title }) => (
-    <View style={styles.sectionHeader}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <View style={styles.divider} />
-    </View>
-  );
-
   return (
-    <MainLayout title="New Admission" navigation={navigation} showBack={true}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        
-        {/* --- ACADEMIC INFO --- */}
-        <SectionHeader title="Academic Info" />
-        <View style={styles.card}>
-          <PremiumInput 
-            label="Full Name *" type="name" 
-            placeholder="Enter Student Name" icon="user" 
-            value={formData.name} onChangeText={t => handleChange('name', t)} 
-            hasError={errors.name}
-          />
-          <PremiumInput 
-            label="SR / Roll No. *" type="default" 
-            placeholder="Enter Roll No." icon="hash" 
-            value={formData.srNo} onChangeText={t => handleChange('srNo', t)} 
+    <SafeAreaView style={styles.container}>
+      
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => navigation.goBack()}
+        >
+          <Feather name="arrow-left" size={24} color={colors.text.primary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Add New Student</Text>
+        <View style={{ width: 44 }} />
+      </View>
+
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+
+        {/* Section 1: Academic Information */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionIconContainer}>
+              <Feather name="book" size={20} color={colors.primary} />
+            </View>
+            <Text style={styles.sectionTitle}>Academic Information</Text>
+          </View>
+
+          <PremiumInput
+            label="SR Number *"
+            value={formData.srNo}
+            onChangeText={(val) => updateField('srNo', val)}
+            placeholder="e.g., 2024001"
+            icon="hash"
+            type="numeric"
             hasError={errors.srNo}
           />
-          <PremiumInput 
-            label="Class *" type="default"
-            placeholder="e.g. 10th-A" icon="book-open" 
-            value={formData.class} onChangeText={t => handleChange('class', t)} 
+
+          <PremiumInput
+            label="Full Name *"
+            value={formData.name}
+            onChangeText={(val) => updateField('name', val)}
+            placeholder="Enter student name"
+            icon="user"
+            type="name"
+            hasError={errors.name}
+          />
+
+          <PremiumInput
+            label="Mobile Number *"
+            value={formData.mobile}
+            onChangeText={(val) => updateField('mobile', val)}
+            placeholder="10-digit mobile"
+            icon="phone"
+            type="numeric"
+            maxLength={10}
+            hasError={errors.mobile}
+          />
+
+          <PremiumInput
+            label="Password *"
+            value={formData.password}
+            onChangeText={(val) => updateField('password', val)}
+            placeholder="Create password for student"
+            icon="lock"
+            secureTextEntry
+            hasError={errors.password}
+          />
+
+          <PremiumSelect
+            label="Class *"
+            value={formData.class}
+            onSelect={(val) => updateField('class', val)}
+            placeholder="Select class"
+            icon="book-open"
+            options={['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']}
             hasError={errors.class}
           />
-          <PremiumInput 
-            label="Mobile Number *" type="numeric" 
-            placeholder="10 Digit Mobile No." icon="smartphone" 
-            value={formData.mobile} onChangeText={t => handleChange('mobile', t)} 
-            maxLength={10} hasError={errors.mobile}
+        </View>
+
+        {/* Section 2: Parent Information */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionIconContainer}>
+              <Feather name="users" size={20} color={colors.secondary} />
+            </View>
+            <Text style={styles.sectionTitle}>Parent Information</Text>
+          </View>
+
+          <PremiumInput
+            label="Father's Name"
+            value={formData.fatherName}
+            onChangeText={(val) => updateField('fatherName', val)}
+            placeholder="Enter father's name"
+            icon="user"
+            type="name"
+          />
+
+          <PremiumInput
+            label="Father's Aadhar"
+            value={formData.fatherAadharNo}
+            onChangeText={(val) => updateField('fatherAadharNo', val)}
+            placeholder="12-digit Aadhar"
+            icon="credit-card"
+            type="numeric"
+            maxLength={12}
+            hasError={errors.fatherAadharNo}
+          />
+
+          <PremiumInput
+            label="Mother's Name"
+            value={formData.motherName}
+            onChangeText={(val) => updateField('motherName', val)}
+            placeholder="Enter mother's name"
+            icon="user"
+            type="name"
+          />
+
+          <PremiumInput
+            label="Mother's Aadhar"
+            value={formData.motherAadharNo}
+            onChangeText={(val) => updateField('motherAadharNo', val)}
+            placeholder="12-digit Aadhar"
+            icon="credit-card"
+            type="numeric"
+            maxLength={12}
+            hasError={errors.motherAadharNo}
           />
         </View>
 
-        {/* --- PARENTS DETAILS --- */}
-        <SectionHeader title="Parents Info" />
-        <View style={styles.card}>
-          <PremiumInput 
-            label="Father's Name *" type="name"
-            placeholder="Enter Father's Name" icon="user" 
-            value={formData.fatherName} onChangeText={t => handleChange('fatherName', t)} 
-            hasError={errors.fatherName}
-          />
-          <PremiumInput 
-            label="Father's Aadhar *" type="numeric"
-            placeholder="12 Digit Aadhar" icon="shield" 
-            value={formData.fatherAadharNo} onChangeText={t => handleChange('fatherAadharNo', t)} 
-            maxLength={12} hasError={errors.fatherAadharNo}
-          />
-          <PremiumInput 
-            label="Mother's Name *" type="name"
-            placeholder="Enter Mother's Name" icon="user" 
-            value={formData.motherName} onChangeText={t => handleChange('motherName', t)} 
-            hasError={errors.motherName}
-          />
-           <PremiumInput 
-            label="Mother's Aadhar *" type="numeric"
-            placeholder="12 Digit Aadhar" icon="shield" 
-            value={formData.motherAadharNo} onChangeText={t => handleChange('motherAadharNo', t)} 
-            maxLength={12} hasError={errors.motherAadharNo}
-          />
-        </View>
+        {/* Section 3: Personal Details */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionIconContainer}>
+              <Feather name="info" size={20} color={colors.cardIndigo} />
+            </View>
+            <Text style={styles.sectionTitle}>Personal Details</Text>
+          </View>
 
-        {/* --- PERSONAL & OFFICIAL --- */}
-        <SectionHeader title="Personal & Official" />
-        <View style={styles.card}>
-          <PremiumDatePicker 
-            label="Date of Birth *" placeholder="Select Date" 
-            value={formData.dob} onSelect={val => handleChange('dob', val)}
+          <PremiumDatePicker
+            label="Date of Birth *"
+            value={formData.dob}
+            onSelect={(val) => updateField('dob', val)}
+            placeholder="Select date"
             hasError={errors.dob}
           />
-          
-          <PremiumInput 
-            label="Student Aadhar *" type="numeric"
-            placeholder="12 Digit Aadhar" icon="shield" 
-            value={formData.aadharNo} onChangeText={t => handleChange('aadharNo', t)} 
-            maxLength={12} hasError={errors.aadharNo}
+
+          <PremiumInput
+            label="Address"
+            value={formData.address}
+            onChangeText={(val) => updateField('address', val)}
+            placeholder="Enter full address"
+            icon="map-pin"
           />
-          
-          <PremiumInput 
-            label="Residential Address *" type="default"
-            placeholder="Full Address" icon="map-pin" 
-            value={formData.address} onChangeText={t => handleChange('address', t)} 
-            hasError={errors.address}
+
+          <PremiumInput
+            label="Student's Aadhar"
+            value={formData.aadharNo}
+            onChangeText={(val) => updateField('aadharNo', val)}
+            placeholder="12-digit Aadhar"
+            icon="credit-card"
+            type="numeric"
+            maxLength={12}
+            hasError={errors.aadharNo}
           />
-          
-          <PremiumSelect 
-            label="Category *" placeholder="Select Category" icon="grid" // Better icon
-            options={CATEGORY_OPTIONS}
-            value={formData.category} onSelect={val => handleChange('category', val)}
+
+          <PremiumSelect
+            label="Category *"
+            value={formData.category}
+            onSelect={(val) => updateField('category', val)}
+            placeholder="Select category"
+            icon="tag"
+            options={['Gen', 'SC', 'ST', 'OBC', 'EWS']}
             hasError={errors.category}
           />
-          
-          <PremiumSelect 
-            label="Ration Card Type *" placeholder="Select Type" icon="credit-card"
-            options={RATION_OPTIONS}
-            value={formData.rationCardType} onSelect={val => handleChange('rationCardType', val)}
-            hasError={errors.rationCardType}
+
+          <PremiumSelect
+            label="Ration Card Type"
+            value={formData.rationCardType}
+            onSelect={(val) => updateField('rationCardType', val)}
+            placeholder="Select type"
+            icon="file-text"
+            options={['APL', 'BPL', 'Antyodaya', 'Annapurna', 'Priority', 'None']}
           />
 
-          {formData.rationCardType && formData.rationCardType !== 'None' && (
-            <PremiumInput 
-              label="Ration Card No *" type="default"
-              placeholder="Enter Ration Card No" icon="hash"
-              value={formData.rationCardNo} onChangeText={t => handleChange('rationCardNo', t)} 
-              hasError={errors.rationCardNo}
-            />
-          )}
-        </View>
-
-        {/* --- BANK DETAILS --- */}
-        <SectionHeader title="Bank Details (Optional)" />
-        <View style={styles.card}>
-          <PremiumInput 
-            label="Bank Name" type="default"
-            placeholder="Bank Name" icon="dollar-sign" 
-            value={formData.bankName} onChangeText={t => handleChange('bankName', t)} 
-          />
-          <PremiumInput 
-            label="Account Number" type="numeric"
-            placeholder="Account No" icon="hash" 
-            value={formData.bankAccountNo} onChangeText={t => handleChange('bankAccountNo', t)} 
-          />
-          <PremiumInput 
-            label="IFSC Code" type="ifsc"
-            placeholder="11 Char IFSC" icon="code" 
-            value={formData.bankIfsc} onChangeText={t => handleChange('bankIfsc', t)} 
-            maxLength={11} hasError={errors.bankIfsc}
+          <PremiumInput
+            label="Ration Card Number"
+            value={formData.rationCardNo}
+            onChangeText={(val) => updateField('rationCardNo', val)}
+            placeholder="Enter ration card number"
+            icon="file-text"
           />
         </View>
 
-        {/* ERROR TOOLTIP */}
-        {submitError ? (
-          <View style={[styles.errorContainer, submitError.includes('Success') && styles.successContainer]}>
-            <Text style={[styles.errorText, submitError.includes('Success') && styles.successText]}>
-              {submitError}
-            </Text>
+        {/* Section 4: Bank Details */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionIconContainer}>
+              <Feather name="dollar-sign" size={20} color={colors.warning} />
+            </View>
+            <Text style={styles.sectionTitle}>Bank Details</Text>
           </View>
-        ) : null}
 
-        <View style={styles.footer}>
-          <PremiumButton 
-            title="Confirm Admission" onPress={handleAddStudent} 
-            loading={loading} color={colors.primary} 
+          <PremiumInput
+            label="Bank Name"
+            value={formData.bankName}
+            onChangeText={(val) => updateField('bankName', val)}
+            placeholder="Enter bank name"
+            icon="home"
+          />
+
+          <PremiumInput
+            label="Account Number"
+            value={formData.bankAccountNo}
+            onChangeText={(val) => updateField('bankAccountNo', val)}
+            placeholder="Enter account number"
+            icon="credit-card"
+            type="numeric"
+          />
+
+          <PremiumInput
+            label="IFSC Code"
+            value={formData.bankIfsc}
+            onChangeText={(val) => updateField('bankIfsc', val)}
+            placeholder="11-character IFSC"
+            icon="hash"
+            type="ifsc"
+            maxLength={11}
+            hasError={errors.bankIfsc}
+          />
+        </View>
+
+        {/* Submit Button */}
+        <View style={styles.buttonContainer}>
+          <PremiumButton
+            title="Add Student"
+            onPress={handleSubmit}
+            loading={loading}
+            color={colors.primary}
           />
         </View>
 
       </ScrollView>
-    </MainLayout>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  scrollContent: { padding: 20, paddingBottom: 50 },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 15, marginTop: 10 },
-  sectionTitle: { fontSize: 16, fontWeight: 'bold', color: colors.text.secondary, marginRight: 10 },
-  divider: { flex: 1, height: 1, backgroundColor: colors.border },
-  card: { backgroundColor: colors.white, borderRadius: 16, padding: 20, marginBottom: 10, ...colors.shadow },
-  footer: { marginTop: 10, marginBottom: 40 },
-  errorContainer: { alignItems: 'center', marginBottom: 10, padding: 12, backgroundColor: '#fff5f5', borderRadius: 8, borderWidth: 1, borderColor: '#feb2b2' },
-  errorText: { color: colors.error, fontWeight: 'bold', textAlign: 'center' },
-  successContainer: { backgroundColor: '#f0fff4', borderColor: '#9ae6b4' },
-  successText: { color: colors.success }
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text.primary,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  section: {
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
+    ...colors.cardShadow,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  sectionIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text.primary,
+  },
+  buttonContainer: {
+    marginTop: 10,
+    marginBottom: 20,
+  },
 });
 
 export default AddStudentScreen;

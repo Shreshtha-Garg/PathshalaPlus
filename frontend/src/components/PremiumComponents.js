@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { 
-  TextInput, TouchableOpacity, Text, StyleSheet, View, ActivityIndicator, Modal, FlatList, Platform 
+  TextInput, TouchableOpacity, Text, StyleSheet, View, 
+  ActivityIndicator, Modal, FlatList, Platform 
 } from 'react-native';
 import { Feather } from '@expo/vector-icons'; 
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -8,26 +9,43 @@ import colors from '../constants/colors';
 
 // --- 1. PREMIUM INPUT ---
 export const PremiumInput = ({ 
-  value, onChangeText, label, placeholder, secureTextEntry, type = 'default', icon, hasError, maxLength 
+  value, onChangeText, label, placeholder, secureTextEntry, 
+  type = 'default', icon, hasError, maxLength, keyboardType, autoCapitalize 
 }) => {
   
   const handleTextChange = (text) => {
     let cleanedText = text;
+    
     if (type === 'numeric') {
       cleanedText = text.replace(/[^0-9]/g, '');
     } 
     else if (type === 'name') {
+      // Allow letters, spaces, dots, hyphens, apostrophes
       cleanedText = text.replace(/[^a-zA-Z\s.\-']/g, '');
     } 
     else if (type === 'ifsc') {
+      // Alphanumeric only, uppercase
       cleanedText = text.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     }
+    else if (type === 'email') {
+      // Remove spaces, lowercase
+      cleanedText = text.replace(/\s/g, '').toLowerCase();
+    }
+    
     onChangeText(cleanedText);
   };
 
   const getKeyboardType = () => {
+    if (keyboardType) return keyboardType;
     if (type === 'numeric') return 'number-pad';
+    if (type === 'email') return 'email-address';
     return 'default';
+  };
+
+  const getAutoCapitalize = () => {
+    if (autoCapitalize) return autoCapitalize;
+    if (type === 'email' || type === 'ifsc') return 'none';
+    return 'sentences';
   };
 
   return (
@@ -35,16 +53,22 @@ export const PremiumInput = ({
       {label && <Text style={styles.label}>{label}</Text>}
       <View style={[styles.inputContainer, hasError && styles.errorBorder]}>
         {icon && (
-          <Feather name={icon} size={20} color={hasError ? colors.error : colors.text.secondary} style={styles.inputIcon} />
+          <Feather 
+            name={icon} 
+            size={20} 
+            color={hasError ? colors.error : colors.text.secondary} 
+            style={styles.inputIcon} 
+          />
         )}
         <TextInput
           style={styles.input}
-          value={value || ''} // Safety check
+          value={value || ''}
           onChangeText={handleTextChange}
           placeholder={placeholder}
-          placeholderTextColor={colors.text.secondary}
+          placeholderTextColor={colors.text.tertiary}
           secureTextEntry={secureTextEntry}
           keyboardType={getKeyboardType()}
+          autoCapitalize={getAutoCapitalize()}
           maxLength={maxLength}
           autoComplete="off"
           autoCorrect={false}
@@ -58,13 +82,13 @@ export const PremiumInput = ({
 export const PremiumDatePicker = ({ value, onSelect, label, placeholder, hasError }) => {
   const [show, setShow] = useState(false);
 
-  // --- WEB FALLBACK: Just a Text Input for Date ---
+  // --- WEB FALLBACK: Text Input for Date ---
   if (Platform.OS === 'web') {
     return (
       <PremiumInput
         label={label}
         value={value}
-        onChangeText={onSelect} // Allow manual typing on web
+        onChangeText={onSelect}
         placeholder="DD-MM-YYYY"
         icon="calendar"
         hasError={hasError}
@@ -89,12 +113,23 @@ export const PremiumDatePicker = ({ value, onSelect, label, placeholder, hasErro
       <TouchableOpacity 
         style={[styles.inputContainer, hasError && styles.errorBorder]} 
         onPress={() => setShow(true)}
+        activeOpacity={0.7}
       >
-        <Feather name="calendar" size={20} color={hasError ? colors.error : colors.text.secondary} style={styles.inputIcon} />
-        <Text style={[styles.inputText, !value && { color: colors.text.secondary }]}>
+        <Feather 
+          name="calendar" 
+          size={20} 
+          color={hasError ? colors.error : colors.text.secondary} 
+          style={styles.inputIcon} 
+        />
+        <Text style={[styles.inputText, !value && { color: colors.text.tertiary }]}>
           {value || placeholder}
         </Text>
-        <Feather name="chevron-down" size={20} color={colors.text.secondary} style={{ marginLeft: 'auto' }} />
+        <Feather 
+          name="chevron-down" 
+          size={20} 
+          color={colors.text.secondary} 
+          style={{ marginLeft: 'auto' }} 
+        />
       </TouchableOpacity>
 
       {show && (
@@ -122,20 +157,41 @@ export const PremiumSelect = ({
       <TouchableOpacity 
         style={[styles.inputContainer, hasError && styles.errorBorder]} 
         onPress={() => setVisible(true)}
+        activeOpacity={0.7}
       >
         {icon && (
-          <Feather name={icon} size={20} color={hasError ? colors.error : colors.text.secondary} style={styles.inputIcon} />
+          <Feather 
+            name={icon} 
+            size={20} 
+            color={hasError ? colors.error : colors.text.secondary} 
+            style={styles.inputIcon} 
+          />
         )}
-        <Text style={[styles.inputText, !value && { color: colors.text.secondary }]}>
+        <Text style={[styles.inputText, !value && { color: colors.text.tertiary }]}>
           {value || placeholder}
         </Text>
-        <Feather name="chevron-down" size={20} color={colors.text.secondary} style={{ marginLeft: 'auto' }} />
+        <Feather 
+          name="chevron-down" 
+          size={20} 
+          color={colors.text.secondary} 
+          style={{ marginLeft: 'auto' }} 
+        />
       </TouchableOpacity>
 
-      <Modal visible={visible} transparent animationType="fade">
-        <TouchableOpacity style={styles.modalOverlay} onPress={() => setVisible(false)}>
+      <Modal visible={visible} transparent animationType="slide">
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1}
+          onPress={() => setVisible(false)}
+        >
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select {label}</Text>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select {label}</Text>
+              <TouchableOpacity onPress={() => setVisible(false)}>
+                <Feather name="x" size={24} color={colors.text.secondary} />
+              </TouchableOpacity>
+            </View>
+            
             <FlatList
               data={options}
               keyExtractor={(item) => item}
@@ -146,9 +202,12 @@ export const PremiumSelect = ({
                     onSelect(item);
                     setVisible(false);
                   }}
+                  activeOpacity={0.7}
                 >
                   <Text style={styles.optionText}>{item}</Text>
-                  {value === item && <Feather name="check" size={18} color={colors.primary} />}
+                  {value === item && (
+                    <Feather name="check" size={20} color={colors.primary} />
+                  )}
                 </TouchableOpacity>
               )}
             />
@@ -159,55 +218,197 @@ export const PremiumSelect = ({
   );
 };
 
-// --- BUTTON & CARD ---
-export const PremiumButton = ({ onPress, title, color, loading }) => {
+// --- 4. PREMIUM BUTTON ---
+export const PremiumButton = ({ onPress, title, color, loading, variant = 'primary' }) => {
+  const buttonColor = variant === 'secondary' ? colors.white : (color || colors.primary);
+  const textColor = variant === 'secondary' ? colors.primary : colors.white;
+  const borderStyle = variant === 'secondary' ? { borderWidth: 2, borderColor: colors.primary } : {};
+
   return (
     <TouchableOpacity 
-      style={[styles.button, { backgroundColor: color || colors.primary }]} 
+      style={[
+        styles.button, 
+        { backgroundColor: buttonColor },
+        borderStyle,
+        loading && { opacity: 0.7 }
+      ]} 
       onPress={onPress}
       disabled={loading}
+      activeOpacity={0.8}
     >
       {loading ? (
-        <ActivityIndicator color={colors.white} />
+        <ActivityIndicator color={textColor} />
       ) : (
-        <Text style={styles.buttonText}>{title}</Text>
+        <Text style={[styles.buttonText, { color: textColor }]}>{title}</Text>
       )}
     </TouchableOpacity>
   );
 };
 
-export const DashboardCard = ({ title, icon, color, onPress, fullWidth }) => {
+// --- 5. DASHBOARD CARD ---
+export const DashboardCard = ({ title, icon, color, onPress, fullWidth, subtitle }) => {
   return (
     <TouchableOpacity 
-      style={[styles.card, { backgroundColor: color, width: fullWidth ? '100%' : '48%' }]} 
+      style={[
+        styles.card, 
+        { backgroundColor: color, width: fullWidth ? '100%' : '48%' }
+      ]} 
       onPress={onPress}
+      activeOpacity={0.85}
     >
-      <Feather name={icon} size={32} color={colors.white} />
-      <Text style={styles.cardTitle}>{title}</Text>
+      <View style={styles.cardIconContainer}>
+        <Feather name={icon} size={28} color={colors.white} />
+      </View>
+      <View style={styles.cardContent}>
+        <Text style={styles.cardTitle}>{title}</Text>
+        {subtitle && <Text style={styles.cardSubtitle}>{subtitle}</Text>}
+      </View>
+      <View style={styles.cardArrow}>
+        <Feather name="arrow-right" size={20} color="rgba(255,255,255,0.8)" />
+      </View>
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
-  wrapper: { marginBottom: 15 },
-  label: { fontSize: 14, fontWeight: '600', color: colors.text.primary, marginBottom: 6, marginLeft: 2 },
-  inputContainer: {
-    backgroundColor: colors.white, borderRadius: 12, borderWidth: 1, borderColor: colors.border,
-    paddingHorizontal: 15, height: 55, flexDirection: 'row', alignItems: 'center',
+  // Input Styles
+  wrapper: { 
+    marginBottom: 18,
   },
-  errorBorder: { borderColor: colors.error, borderWidth: 1.5 },
-  inputIcon: { marginRight: 10 },
-  input: { flex: 1, fontSize: 16, color: colors.text.primary, height: '100%' }, // Added height 100%
-  inputText: { fontSize: 16, color: colors.text.primary },
+  label: { 
+    fontSize: 14, 
+    fontWeight: '600', 
+    color: colors.text.primary, 
+    marginBottom: 8, 
+    marginLeft: 2 
+  },
+  inputContainer: {
+    backgroundColor: colors.white, 
+    borderRadius: 12, 
+    borderWidth: 1.5, 
+    borderColor: colors.border,
+    paddingHorizontal: 16, 
+    height: 56, 
+    flexDirection: 'row', 
+    alignItems: 'center',
+  },
+  errorBorder: { 
+    borderColor: colors.error, 
+    borderWidth: 2 
+  },
+  inputIcon: { 
+    marginRight: 12 
+  },
+  input: { 
+    flex: 1, 
+    fontSize: 16, 
+    color: colors.text.primary, 
+    height: '100%',
+    paddingTop: 0,
+    paddingBottom: 0,
+  },
+  inputText: { 
+    flex: 1,
+    fontSize: 16, 
+    color: colors.text.primary 
+  },
   
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: 'white', borderRadius: 16, padding: 20, maxHeight: 400 },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, color: colors.text.primary },
-  optionItem: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#f0f0f0', flexDirection: 'row', justifyContent: 'space-between' },
-  optionText: { fontSize: 16, color: colors.text.primary },
+  // Modal Styles
+  modalOverlay: { 
+    flex: 1, 
+    backgroundColor: 'rgba(0,0,0,0.5)', 
+    justifyContent: 'flex-end',
+  },
+  modalContent: { 
+    backgroundColor: colors.white, 
+    borderTopLeftRadius: 24, 
+    borderTopRightRadius: 24,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
+  },
+  modalTitle: { 
+    fontSize: 20, 
+    fontWeight: '700', 
+    color: colors.text.primary 
+  },
+  optionItem: { 
+    paddingVertical: 16,
+    paddingHorizontal: 20, 
+    borderBottomWidth: 1, 
+    borderBottomColor: colors.divider, 
+    flexDirection: 'row', 
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  optionText: { 
+    fontSize: 16, 
+    color: colors.text.primary,
+    fontWeight: '500',
+  },
 
-  button: { height: 55, borderRadius: 12, justifyContent: 'center', alignItems: 'center', ...colors.shadow },
-  buttonText: { color: colors.white, fontSize: 16, fontWeight: 'bold' },
-  card: { height: 140, borderRadius: 16, padding: 20, justifyContent: 'space-between', marginBottom: 15, ...colors.shadow },
-  cardTitle: { fontSize: 18, fontWeight: '700', color: colors.white }
+  // Button Styles
+  button: { 
+    height: 56, 
+    borderRadius: 12, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    ...colors.buttonShadow 
+  },
+  buttonText: { 
+    fontSize: 16, 
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  
+  // Card Styles
+  card: { 
+    height: 140, 
+    borderRadius: 20, 
+    padding: 20, 
+    marginBottom: 16,
+    ...colors.shadow,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardIconContainer: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardContent: {
+    flex: 1,
+    marginLeft: 16,
+  },
+  cardTitle: { 
+    fontSize: 18, 
+    fontWeight: '700', 
+    color: colors.white,
+    marginBottom: 4,
+  },
+  cardSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '500',
+  },
+  cardArrow: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });
+
+export default { PremiumInput, PremiumDatePicker, PremiumSelect, PremiumButton, DashboardCard };
