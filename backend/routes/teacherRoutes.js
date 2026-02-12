@@ -19,7 +19,7 @@ router.post('/login', async (req, res) => {
     await connectToDatabase();
     const { email, password } = req.body;
     const teacher = await Teacher.findOne({ email });
-    console.log("Login attempt for email:", email);
+    // console.log("Login attempt for email:", email);
     if (!teacher || teacher.password !== password) {
        return res.status(401).json({ message: "Invalid Admin Credentials" });
     }
@@ -108,7 +108,13 @@ router.get('/posts', protect, async (req, res) => {
     await connectToDatabase();
     // In a real app, you might filter by 'createdBy'. 
     // For now, we return all posts so the Admin can manage everything.
-    const posts = await Post.find().sort({ createdAt: -1 });
+    // if user is admin then return all posts else return only posts created by that teacher
+    let posts;
+    if (req.user.role === 'admin') {
+      posts = await Post.find().sort({ createdAt: -1 });
+    } else {
+      posts = await Post.find({ createdBy: req.user._id }).sort({ createdAt: -1 });
+    }
     res.json(posts);
   } catch (error) {
     res.status(500).json({ message: "Error fetching posts" });

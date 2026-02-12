@@ -143,7 +143,7 @@ const TeacherHomeScreen = ({ navigation }) => {
             icon="check-circle" 
             color={colors.cardIndigo}
             fullWidth={true}
-            onPress={() => Alert.alert("Coming Soon", "Homework review feature is under development.")}
+            onPress={() => navigation.navigate('CheckHomework')}
           />
 
           {/* Row 3 - Full Width */}
@@ -153,7 +153,7 @@ const TeacherHomeScreen = ({ navigation }) => {
             icon="users" 
             color={colors.cardSlate}
             fullWidth={true}
-            onPress={() => Alert.alert("Coming Soon", "Class list feature is under development.")}
+            onPress={() => navigation.navigate('ClassList')}
           />
 
         </View>

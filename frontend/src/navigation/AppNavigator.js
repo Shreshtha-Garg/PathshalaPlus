@@ -10,7 +10,8 @@ import TeacherLoginScreen from '../screens/auth/TeacherLoginScreen';
 import StudentLoginScreen from '../screens/auth/StudentLoginScreen';
 import TeacherHomeScreen from '../screens/teacher/TeacherHomeScreen';
 import StudentHomeScreen from '../screens/student/StudentHomeScreen';
-
+import ClassListScreen from '../screens/teacher/ClassListScreen';
+import CheckHomeworkScreen from '../screens/teacher/CheckHomeworkScreen';
 const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
@@ -34,7 +35,8 @@ const AppNavigator = () => {
         <Stack.Screen name="StudentHome" component={StudentHomeScreen} />
         <Stack.Screen name="AddStudent" component={AddStudentScreen} />
         <Stack.Screen name="PostNotice" component={PostNoticeScreen} />
-
+        <Stack.Screen name="ClassList" component={ClassListScreen} />
+        <Stack.Screen name="CheckHomework" component={CheckHomeworkScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

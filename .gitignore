@@ -11,6 +11,7 @@ yarn-error.log*
 .expo/
 .expo-shared/
 web-build/
+frontend\expo-env.d.ts
 
 # OS
 .DS_Store
