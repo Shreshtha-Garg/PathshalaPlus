@@ -5,9 +5,12 @@ const teacherSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   mobile: { type: String, required: true },
-  
+  profilePhoto: { 
+    type: String, 
+    default: "https://cdn-icons-png.flaticon.com/512/3135/3135715.png" // Default Avatar
+  },
   // Just in case another teacher is added later
-  role: { type: String, default: 'Admin' }, 
+  role: { type: String, default: 'Teacher' }, 
 }, { timestamps: true });
 
 export default mongoose.model('Teacher', teacherSchema);

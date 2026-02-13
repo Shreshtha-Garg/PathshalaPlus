@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   TextInput, TouchableOpacity, Text, StyleSheet, View, 
-  ActivityIndicator, Modal, FlatList, Platform 
+  ActivityIndicator, Modal, FlatList, Platform, Animated 
 } from 'react-native';
 import { Feather } from '@expo/vector-icons'; 
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -145,11 +145,31 @@ export const PremiumDatePicker = ({ value, onSelect, label, placeholder, hasErro
   );
 };
 
+
 // --- 3. PREMIUM SELECT ---
 export const PremiumSelect = ({ 
   value, onSelect, label, placeholder, icon, options, hasError 
 }) => {
   const [visible, setVisible] = useState(false);
+  const slideAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.spring(slideAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 65,
+        friction: 11,
+      }).start();
+    } else {
+      slideAnim.setValue(0);
+    }
+  }, [visible]);
+
+  const translateY = slideAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [600, 0],
+  });
 
   return (
     <View style={styles.wrapper}>
@@ -178,13 +198,18 @@ export const PremiumSelect = ({
         />
       </TouchableOpacity>
 
-      <Modal visible={visible} transparent animationType="slide">
+      <Modal visible={visible} transparent animationType="fade">
         <TouchableOpacity 
           style={styles.modalOverlay} 
           activeOpacity={1}
           onPress={() => setVisible(false)}
         >
-          <View style={styles.modalContent}>
+          <Animated.View 
+            style={[
+              styles.modalContent,
+              { transform: [{ translateY }] }
+            ]}
+          >
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select {label}</Text>
               <TouchableOpacity onPress={() => setVisible(false)}>
@@ -211,7 +236,7 @@ export const PremiumSelect = ({
                 </TouchableOpacity>
               )}
             />
-          </View>
+          </Animated.View>
         </TouchableOpacity>
       </Modal>
     </View>

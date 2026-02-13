@@ -5,47 +5,157 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
+import * as FileSystem from 'expo-file-system';
 import api from '../../services/api';
 import colors from '../../constants/colors';
 import { PremiumInput, PremiumButton, PremiumSelect } from '../../components/PremiumComponents';
+
+const CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
+const CLOUDINARY_UPLOAD_URL = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`;
+const UPLOAD_PRESET = 'pathshala_plus'; 
 
 const PostNoticeScreen = ({ navigation }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [targetClass, setTargetClass] = useState('');
-  const [type, setType] = useState('Notice'); // 'Notice' or 'Homework' or 'Material'
+  const [type, setType] = useState('Notice'); 
+  
+  const [attachment, setAttachment] = useState(null); 
   const [loading, setLoading] = useState(false);
 
+  const getTitlePlaceholder = () => {
+    if (type === 'Homework') return "e.g., Maths Homework";
+    if (type === 'Material') return "e.g., Chapter 1 Notes";
+    return "e.g., Holiday Tomorrow";
+  };
+
+  // --- SMART FILE PICKER & COMPRESSION ---
+  const pickAttachment = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        // Restrict to Photos, PDFs, Word, and PPTs. Videos are completely excluded.
+        type: [
+          'image/*',
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/vnd.ms-powerpoint',
+          'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+        ],
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) return;
+
+      let file = result.assets[0];
+      let finalUri = file.uri;
+      let finalSize = file.size;
+      let finalMimeType = file.mimeType || 'application/octet-stream';
+      let finalName = file.name;
+
+      // 1. IF IMAGE: Apply "WhatsApp-style" compression (No resizing, just quality drop)
+      if (finalMimeType.startsWith('image/')) {
+        const manipResult = await ImageManipulator.manipulateAsync(
+          file.uri,
+          [], // Empty array = no resizing operations
+          { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG } // 60% quality JPEG
+        );
+        
+        finalUri = manipResult.uri;
+        finalMimeType = 'image/jpeg';
+        
+        // Change extension to .jpg if it was something else
+        finalName = finalName.replace(/\.[^/.]+$/, "") + ".jpg";
+
+        // Get the new file size after compression
+        const fileInfo = await FileSystem.getInfoAsync(finalUri);
+        finalSize = fileInfo.size;
+      }
+
+      // 2. CHECK SIZE: Dynamic limits based on file type
+      const isPdf = finalMimeType === 'application/pdf';
+      const MAX_SIZE_BYTES = isPdf ? (10 * 1024 * 1024) : (5 * 1024 * 1024); // 10MB for PDF, 5MB for others
+
+      if (finalSize > MAX_SIZE_BYTES) {
+        Alert.alert(
+          "File Too Large", 
+          `Please select a ${isPdf ? 'PDF smaller than 10 MB' : 'file smaller than 5 MB'}.`
+        );
+        return;
+      }
+
+      // 3. Set the final approved file to state
+      setAttachment({
+        uri: finalUri,
+        name: finalName,
+        mimeType: finalMimeType,
+        size: finalSize
+      });
+
+    } catch (err) {
+      console.log(err);
+      Alert.alert("Error", "Could not pick the file.");
+    }
+  };
+
+  // --- UPLOAD TO CLOUDINARY & SAVE ---
   const handlePost = async () => {
-    // Validation
     if (!title.trim() || !description.trim() || !targetClass.trim()) {
-      Alert.alert('Missing Details', 'Please fill all fields.');
+      Alert.alert('Missing Details', 'Please fill all required fields.');
       return;
     }
 
     setLoading(true);
     try {
-      // Backend Endpoint: /api/teacher/post-notice
+      let uploadedAttachmentUrl = null;
+
+      // 1. Upload Attachment to Cloudinary if it exists
+      if (attachment) {
+        if (!CLOUD_NAME) throw new Error("Cloud Name is missing in .env");
+
+        const data = new FormData();
+        data.append('file', {
+          uri: attachment.uri,
+          name: attachment.name,
+          type: attachment.mimeType
+        });
+        data.append('upload_preset', UPLOAD_PRESET);
+        data.append('folder', `pathshala_plus/posts/${type.toLowerCase()}s`);
+
+        const uploadRes = await fetch(CLOUDINARY_UPLOAD_URL, {
+          method: 'POST',
+          body: data,
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+
+        const uploadData = await uploadRes.json();
+        
+        if (uploadData.secure_url) {
+          uploadedAttachmentUrl = uploadData.secure_url;
+        } else {
+          throw new Error("Failed to upload attachment to cloud.");
+        }
+      }
+
+      // 2. Save Post to Database
       await api.post('/teacher/post-notice', {
         title: title.trim(),
         description: description.trim(),
         targetClass: targetClass.trim(),
-        type
+        type,
+        attachmentUrl: uploadedAttachmentUrl 
       });
 
       Alert.alert(
         'Posted Successfully!', 
-        `Your ${type.toLowerCase()} has been shared with ${targetClass}.`,
+        `Your ${type.toLowerCase()} has been shared with Class ${targetClass}.`,
         [{ text: 'Done', onPress: () => navigation.goBack() }]
       );
 
-      // Clear form
-      setTitle('');
-      setDescription('');
-      setTargetClass('');
-
     } catch (error) {
-      const msg = error.response?.data?.message || 'Could not post. Please try again.';
+      const msg = error.response?.data?.message || error.message || 'Could not post. Please try again.';
       Alert.alert('Error', msg);
     } finally {
       setLoading(false);
@@ -79,21 +189,15 @@ const PostNoticeScreen = ({ navigation }) => {
           
           {/* Type Selector */}
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Post Type</Text>
+            {/* <Text style={styles.sectionLabel}>Post Type</Text> */}
             <View style={styles.typeContainer}>
               <TouchableOpacity 
                 style={[styles.typeButton, type === 'Notice' && styles.activeType]}
                 onPress={() => setType('Notice')}
                 activeOpacity={0.7}
               >
-                <Feather 
-                  name="bell" 
-                  size={18} 
-                  color={type === 'Notice' ? colors.primary : colors.text.secondary} 
-                />
-                <Text style={[styles.typeText, type === 'Notice' && styles.activeTypeText]}>
-                  Notice
-                </Text>
+                <Feather name="bell" size={18} color={type === 'Notice' ? colors.primary : colors.text.secondary} />
+                <Text style={[styles.typeText, type === 'Notice' && styles.activeTypeText]}>Notice</Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
@@ -101,14 +205,8 @@ const PostNoticeScreen = ({ navigation }) => {
                 onPress={() => setType('Homework')}
                 activeOpacity={0.7}
               >
-                <Feather 
-                  name="book-open" 
-                  size={18} 
-                  color={type === 'Homework' ? colors.primary : colors.text.secondary} 
-                />
-                <Text style={[styles.typeText, type === 'Homework' && styles.activeTypeText]}>
-                  Homework
-                </Text>
+                <Feather name="book-open" size={18} color={type === 'Homework' ? colors.primary : colors.text.secondary} />
+                <Text style={[styles.typeText, type === 'Homework' && styles.activeTypeText]}>Homework</Text>
               </TouchableOpacity>
 
               <TouchableOpacity 
@@ -116,14 +214,8 @@ const PostNoticeScreen = ({ navigation }) => {
                 onPress={() => setType('Material')}
                 activeOpacity={0.7}
               >
-                <Feather 
-                  name="file-text" 
-                  size={18} 
-                  color={type === 'Material' ? colors.primary : colors.text.secondary} 
-                />
-                <Text style={[styles.typeText, type === 'Material' && styles.activeTypeText]}>
-                  Material
-                </Text>
+                <Feather name="file-text" size={18} color={type === 'Material' ? colors.primary : colors.text.secondary} />
+                <Text style={[styles.typeText, type === 'Material' && styles.activeTypeText]}>Material</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -135,7 +227,7 @@ const PostNoticeScreen = ({ navigation }) => {
               label="Title *"
               value={title} 
               onChangeText={setTitle} 
-              placeholder="e.g., Holiday Tomorrow" 
+              placeholder={getTitlePlaceholder()} 
               icon="type"
             />
 
@@ -145,13 +237,7 @@ const PostNoticeScreen = ({ navigation }) => {
               onSelect={setTargetClass}
               placeholder="Select class"
               icon="users"
-              options={[
-                'All',
-                '1', '2', '3', '4', '5', '6', 
-                '7', '8', '9', '10', '11', '12',
-                '10-A', '10-B', '11-Science', '11-Commerce',
-                '12-Science', '12-Commerce'
-              ]}
+              options={['All', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']}
             />
 
             {/* Description Text Area */}
@@ -174,30 +260,31 @@ const PostNoticeScreen = ({ navigation }) => {
                   <Text style={styles.charCount}>
                     {description.length} characters
                   </Text>
-                  
-                  {/* Formatting toolbar (visual only for now) */}
-                  <View style={styles.toolbar}>
-                    <TouchableOpacity style={styles.toolButton}>
-                      <Feather name="bold" size={18} color={colors.text.secondary} />
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.toolButton}>
-                      <Feather name="italic" size={18} color={colors.text.secondary} />
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.toolButton}>
-                      <Feather name="link" size={18} color={colors.text.secondary} />
-                    </TouchableOpacity>
-                  </View>
                 </View>
               </View>
             </View>
 
-            {/* Future: Attachment Upload */}
+            {/* Attachment Button */}
             <TouchableOpacity 
-              style={styles.attachmentButton}
-              onPress={() => Alert.alert('Coming Soon', 'File attachment feature is under development.')}
+              style={[styles.attachmentButton, attachment && { borderColor: colors.success }]}
+              onPress={pickAttachment}
+              activeOpacity={0.7}
             >
-              <Feather name="paperclip" size={20} color={colors.primary} />
-              <Text style={styles.attachmentText}>Attach File (Optional)</Text>
+              <Feather 
+                name={attachment ? "check-circle" : "paperclip"} 
+                size={20} 
+                color={attachment ? colors.success : colors.primary} 
+              />
+              <Text style={[styles.attachmentText, attachment && { color: colors.success }]} numberOfLines={1}>
+                {attachment ? attachment.name : "Attach File (PDF: 10MB, Others: 5MB)"}
+              </Text>
+              
+              {/* Clear button if an attachment is selected */}
+              {attachment && (
+                <TouchableOpacity onPress={() => setAttachment(null)} style={{ marginLeft: 'auto', padding: 5 }}>
+                  <Feather name="x-circle" size={20} color={colors.error} />
+                </TouchableOpacity>
+              )}
             </TouchableOpacity>
 
           </View>
@@ -227,8 +314,6 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
-  
-  // Header
   header: {
     flexDirection: 'row', 
     justifyContent: 'space-between', 
@@ -252,14 +337,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text.primary,
   },
-  
-  // Content
   scrollContent: { 
     padding: 20,
     paddingBottom: 40,
   },
-  
-  // Type Selector Section
   section: {
     marginBottom: 24,
   },
@@ -298,16 +379,12 @@ const styles = StyleSheet.create({
     color: colors.primary, 
     fontWeight: '700' 
   },
-
-  // Form Card
   formCard: {
     backgroundColor: colors.white,
     borderRadius: 20,
     padding: 20,
     ...colors.cardShadow,
   },
-
-  // Text Area
   textAreaWrapper: {
     marginBottom: 18,
   },
@@ -346,19 +423,9 @@ const styles = StyleSheet.create({
     color: colors.text.tertiary,
     fontWeight: '500',
   },
-  toolbar: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  toolButton: {
-    padding: 4,
-  },
-
-  // Attachment Button
   attachmentButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderRadius: 12,
@@ -368,12 +435,11 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   attachmentText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
     color: colors.primary,
+    flexShrink: 1, 
   },
-  
-  // Footer
   footer: { 
     padding: 20, 
     backgroundColor: colors.white,

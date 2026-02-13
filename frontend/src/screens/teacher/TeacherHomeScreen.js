@@ -125,6 +125,7 @@ const TeacherHomeScreen = ({ navigation }) => {
             subtitle="New admission"
             icon="user-plus" 
             color={colors.cardBlue} 
+            fullWidth={true}
             onPress={() => navigation.navigate('AddStudent')} 
           />
           
@@ -133,6 +134,7 @@ const TeacherHomeScreen = ({ navigation }) => {
             subtitle="Homework & notices"
             icon="edit-3" 
             color={colors.cardGreen} 
+            fullWidth={true}
             onPress={() => navigation.navigate('PostNotice')} 
           />
 
@@ -190,7 +192,7 @@ const TeacherHomeScreen = ({ navigation }) => {
         
         <TouchableOpacity 
           style={styles.navItem}
-          onPress={handleLogout}
+          onPress={() => navigation.navigate('Settings')}
         >
           <Feather name="settings" size={24} color={colors.text.secondary} />
           <Text style={styles.navText}>Settings</Text>

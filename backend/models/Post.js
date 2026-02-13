@@ -11,7 +11,15 @@ const postSchema = new mongoose.Schema({
   description: { type: String },
   attachmentUrl: { type: String }, 
   targetClass: { type: String, default: 'All' },
-  // auto delete after 10 days (864000 seconds) - can be adjusted as needed
+  
+  // --- NEW FIELD: Link to Teacher Model ---
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Teacher',
+    required: true
+  },
+
+  // Auto delete after 10 days
   createdAt: { type: Date, default: Date.now, expires: 864000 } 
 });
 
