@@ -7,7 +7,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import * as FileSystem from 'expo-file-system';
+// Fixed the deprecation warning by importing from the legacy path as requested by Expo logs
+import { getInfoAsync } from 'expo-file-system/legacy'; 
 import api from '../../services/api';
 import colors from '../../constants/colors';
 import { PremiumInput, PremiumButton, PremiumSelect } from '../../components/PremiumComponents';
@@ -35,7 +36,6 @@ const PostNoticeScreen = ({ navigation }) => {
   const pickAttachment = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        // Restrict to Photos, PDFs, Word, and PPTs. Videos are completely excluded.
         type: [
           'image/*',
           'application/pdf',
@@ -55,11 +55,11 @@ const PostNoticeScreen = ({ navigation }) => {
       let finalMimeType = file.mimeType || 'application/octet-stream';
       let finalName = file.name;
 
-      // 1. IF IMAGE: Apply "WhatsApp-style" compression (No resizing, just quality drop)
+      // 1. IF IMAGE: Apply "WhatsApp-style" compression (NO width resizing, just quality drop)
       if (finalMimeType.startsWith('image/')) {
         const manipResult = await ImageManipulator.manipulateAsync(
           file.uri,
-          [], // Empty array = no resizing operations
+          [], // Empty array = absolutely no resizing
           { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG } // 60% quality JPEG
         );
         
@@ -69,8 +69,8 @@ const PostNoticeScreen = ({ navigation }) => {
         // Change extension to .jpg if it was something else
         finalName = finalName.replace(/\.[^/.]+$/, "") + ".jpg";
 
-        // Get the new file size after compression
-        const fileInfo = await FileSystem.getInfoAsync(finalUri);
+        // Get the new file size after compression using the warning-free legacy import
+        const fileInfo = await getInfoAsync(finalUri);
         finalSize = fileInfo.size;
       }
 
@@ -111,7 +111,7 @@ const PostNoticeScreen = ({ navigation }) => {
     try {
       let uploadedAttachmentUrl = null;
 
-      // 1. Upload Attachment to Cloudinary if it exists
+      // Upload Attachment to Cloudinary if it exists
       if (attachment) {
         if (!CLOUD_NAME) throw new Error("Cloud Name is missing in .env");
 
@@ -139,7 +139,7 @@ const PostNoticeScreen = ({ navigation }) => {
         }
       }
 
-      // 2. Save Post to Database
+      // Save Post to Database
       await api.post('/teacher/post-notice', {
         title: title.trim(),
         description: description.trim(),
@@ -153,6 +153,12 @@ const PostNoticeScreen = ({ navigation }) => {
         `Your ${type.toLowerCase()} has been shared with Class ${targetClass}.`,
         [{ text: 'Done', onPress: () => navigation.goBack() }]
       );
+
+      // Clear the form on successful post (optional but good UX)
+      setTitle('');
+      setDescription('');
+      setTargetClass('');
+      setAttachment(null);
 
     } catch (error) {
       const msg = error.response?.data?.message || error.message || 'Could not post. Please try again.';
@@ -189,7 +195,6 @@ const PostNoticeScreen = ({ navigation }) => {
           
           {/* Type Selector */}
           <View style={styles.section}>
-            {/* <Text style={styles.sectionLabel}>Post Type</Text> */}
             <View style={styles.typeContainer}>
               <TouchableOpacity 
                 style={[styles.typeButton, type === 'Notice' && styles.activeType]}
