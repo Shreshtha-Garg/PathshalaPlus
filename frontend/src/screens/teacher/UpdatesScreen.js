@@ -3,10 +3,10 @@ import {
   View, Text, StyleSheet, TouchableOpacity, FlatList, 
   ActivityIndicator, RefreshControl 
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import api from '../../services/api';
 import colors from '../../constants/colors';
+import MainLayout from '../../components/MainLayout';
 
 const UpdatesScreen = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState('My Posts'); // 'My Posts' or 'School Notices'
@@ -14,9 +14,17 @@ const UpdatesScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Reload data whenever the screen comes into focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchPosts();
+    });
+    fetchPosts();
+    return unsubscribe;
+  }, [navigation]);
+
   const fetchPosts = async () => {
     try {
-      // We will adjust this API slightly on the backend next!
       const res = await api.get('/teacher/posts'); 
       setPosts(res.data);
     } catch (error) {
@@ -27,27 +35,26 @@ const UpdatesScreen = ({ navigation }) => {
     }
   };
 
-  useEffect(() => {
-    fetchPosts();
-  }, []);
-
   const onRefresh = () => {
     setRefreshing(true);
     fetchPosts();
   };
 
   // Filter posts based on the active tab
-  // (Note: We will need to tweak the backend so it actually returns School Notices to teachers)
   const filteredPosts = posts.filter(post => {
     if (activeTab === 'My Posts') {
-      return true; // For now, assuming the API returns ONLY my posts
+      return true;
     } else {
       return post.type === 'Notice'; 
     }
   });
 
   const renderPostCard = ({ item }) => (
-    <View style={styles.card}>
+    <TouchableOpacity 
+      style={styles.card} 
+      activeOpacity={0.7}
+      onPress={() => navigation.navigate('ViewPost', { post: item })}
+    >
       <View style={styles.cardHeader}>
         <View style={styles.titleRow}>
           <View style={[styles.typeBadge, { backgroundColor: getTypeColor(item.type) + '15' }]}>
@@ -79,113 +86,80 @@ const UpdatesScreen = ({ navigation }) => {
           </View>
         )}
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   const getTypeColor = (type) => {
-    if (type === 'Homework') return colors.warning; // e.g., Orange
-    if (type === 'Material') return colors.success; // e.g., Green
-    return colors.primary; // Notice = Blue
+    if (type === 'Homework') return colors.warning; 
+    if (type === 'Material') return colors.success; 
+    return colors.primary; 
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Updates</Text>
-        <TouchableOpacity 
-          style={styles.addButton}
-          onPress={() => navigation.navigate('PostNotice')}
-        >
-          <Feather name="plus" size={20} color={colors.white} />
-        </TouchableOpacity>
+    <MainLayout title="Updates" showProfileIcon={false}>
+      <View style={styles.container}>
+        
+        {/* Top Toggle Bar */}
+        <View style={styles.toggleContainerWrapper}>
+          <View style={styles.toggleContainer}>
+            <TouchableOpacity 
+              style={[styles.toggleButton, activeTab === 'My Posts' && styles.activeToggle]}
+              onPress={() => setActiveTab('My Posts')}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.toggleText, activeTab === 'My Posts' && styles.activeToggleText]}>
+                My Posts
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.toggleButton, activeTab === 'School Notices' && styles.activeToggle]}
+              onPress={() => setActiveTab('School Notices')}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.toggleText, activeTab === 'School Notices' && styles.activeToggleText]}>
+                School Notices
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Post List */}
+        {loading ? (
+          <View style={styles.centerBox}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : filteredPosts.length === 0 ? (
+          <View style={styles.centerBox}>
+            <Feather name="inbox" size={48} color={colors.text.tertiary} style={{ opacity: 0.5 }} />
+            <Text style={styles.emptyText}>No posts found.</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={filteredPosts}
+            keyExtractor={(item) => item._id}
+            renderItem={renderPostCard}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
+            }
+          />
+        )}
+
       </View>
-
-      {/* Top Toggle Bar */}
-      <View style={styles.toggleContainerWrapper}>
-        <View style={styles.toggleContainer}>
-          <TouchableOpacity 
-            style={[styles.toggleButton, activeTab === 'My Posts' && styles.activeToggle]}
-            onPress={() => setActiveTab('My Posts')}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.toggleText, activeTab === 'My Posts' && styles.activeToggleText]}>
-              My Posts
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.toggleButton, activeTab === 'School Notices' && styles.activeToggle]}
-            onPress={() => setActiveTab('School Notices')}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.toggleText, activeTab === 'School Notices' && styles.activeToggleText]}>
-              School Notices
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Post List */}
-      {loading ? (
-        <View style={styles.centerBox}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      ) : filteredPosts.length === 0 ? (
-        <View style={styles.centerBox}>
-          <Feather name="inbox" size={48} color={colors.text.tertiary} style={{ opacity: 0.5 }} />
-          <Text style={styles.emptyText}>No posts found.</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={filteredPosts}
-          keyExtractor={(item) => item._id}
-          renderItem={renderPostCard}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
-          }
-        />
-      )}
-
-    </SafeAreaView>
+    </MainLayout>
   );
 };
 
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: colors.background 
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 15,
-    backgroundColor: colors.background,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: colors.text.primary,
-    letterSpacing: -0.5,
-  },
-  addButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...colors.shadow,
   },
   toggleContainerWrapper: {
     paddingHorizontal: 20,
     marginBottom: 10,
+    marginTop: 10,
   },
   toggleContainer: {
     flexDirection: 'row',
@@ -215,7 +189,7 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 20,
     paddingTop: 10,
-    paddingBottom: 100, // Extra padding for bottom bar
+    paddingBottom: 20, // Reset to 20 since the button is gone
   },
   card: {
     backgroundColor: colors.white,
@@ -262,7 +236,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     borderTopWidth: 1,
-    borderTopColor: colors.divider,
+    borderTopColor: colors.divider || '#f0f0f0',
     paddingTop: 12,
   },
   targetClassBadge: {
@@ -303,7 +277,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text.tertiary,
     fontWeight: '500',
-  }
+  },
 });
 
 export default UpdatesScreen;

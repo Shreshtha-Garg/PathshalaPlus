@@ -10,9 +10,14 @@ const SettingsScreen = ({ navigation }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Added focus listener so the image updates immediately if they change it in Edit Profile
   useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchProfile();
+    });
     fetchProfile();
-  }, []);
+    return unsubscribe;
+  }, [navigation]);
 
   const fetchProfile = async () => {
     try {
@@ -33,7 +38,7 @@ const SettingsScreen = ({ navigation }) => {
   };
 
   const MenuItem = ({ icon, label, onPress, isDestructive = false }) => (
-    <TouchableOpacity style={styles.menuItem} onPress={onPress}>
+    <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.menuLeft}>
         <View style={[styles.iconBox, isDestructive && styles.destructiveIconBox]}>
           <Feather name={icon} size={20} color={isDestructive ? colors.error : colors.primary} />
@@ -44,7 +49,7 @@ const SettingsScreen = ({ navigation }) => {
     </TouchableOpacity>
   );
 
-  if (loading) {
+  if (loading && !user) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -53,8 +58,9 @@ const SettingsScreen = ({ navigation }) => {
   }
 
   return (
-    <MainLayout title="Settings" navigation={navigation} showBack={false}>
-      <ScrollView contentContainerStyle={styles.container}>
+    // NEW: Passed showProfileIcon={false} to hide the redundant top-right icon
+    <MainLayout title="Settings" navigation={navigation} showBack={false} showProfileIcon={false}>
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         
         {/* 1. Profile Card */}
         <View style={styles.profileCard}>
@@ -69,16 +75,17 @@ const SettingsScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* 2. Edit Profile Button (NEW - LINKED) */}
+        {/* 2. Edit Profile Button */}
         <TouchableOpacity 
           style={styles.editButton} 
           onPress={() => navigation.navigate('EditProfile')}
+          activeOpacity={0.8}
         >
           <Feather name="edit-2" size={16} color={colors.white} style={{ marginRight: 8 }} />
           <Text style={styles.editButtonText}>Edit Profile</Text>
         </TouchableOpacity>
 
-        {/* 3. Account Section (LINKED) */}
+        {/* 3. Account Section */}
         <Text style={styles.sectionTitle}>Account</Text>
         <View style={styles.section}>
           <MenuItem 
@@ -88,7 +95,7 @@ const SettingsScreen = ({ navigation }) => {
           />
         </View>
 
-        {/* 4. Admin Section (LINKED) */}
+        {/* 4. Admin Section */}
         {user?.role === 'Admin' && (
           <>
             <Text style={styles.sectionTitle}>Administration</Text>
@@ -107,7 +114,7 @@ const SettingsScreen = ({ navigation }) => {
           </>
         )}
 
-        {/* 5. Support Section (LINKED) */}
+        {/* 5. Support Section */}
         <Text style={styles.sectionTitle}>Support</Text>
         <View style={styles.section}>
           <MenuItem 
@@ -153,13 +160,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', backgroundColor: colors.white,
     padding: 20, borderRadius: 16, marginBottom: 15, ...colors.shadow
   },
-  avatar: { width: 60, height: 60, borderRadius: 30, marginRight: 15, backgroundColor: '#f0f0f0' },
+  avatar: { 
+    width: 72, 
+    height: 72, 
+    borderRadius: 36, 
+    marginRight: 15, 
+    backgroundColor: '#f0f0f0',
+    // ADDED: 2px white border and shadow
+    borderWidth: 2,
+    borderColor: colors.white,
+    ...colors.shadow
+  },
   profileInfo: { flex: 1 },
   name: { fontSize: 18, fontWeight: 'bold', color: colors.text.primary },
   role: { fontSize: 14, fontWeight: '600', color: colors.primary, marginTop: 2 },
   email: { fontSize: 12, color: colors.text.secondary, marginTop: 2 },
   
-  // New Edit Button Style
   editButton: { 
     flexDirection: 'row', justifyContent: 'center', alignItems: 'center', 
     backgroundColor: colors.primary, padding: 12, borderRadius: 12, marginBottom: 25, ...colors.shadow 
@@ -176,7 +192,8 @@ const styles = StyleSheet.create({
   menuText: { fontSize: 16, color: colors.text.primary },
   destructiveText: { color: colors.error, fontWeight: 'bold' },
   
-  logoutContainer: { marginTop: 20, backgroundColor: colors.white, borderRadius: 16, paddingHorizontal: 15, ...colors.shadow },
+  // UX fix: Added margin top to separate logout from other settings
+  logoutContainer: { marginTop: 25, backgroundColor: colors.white, borderRadius: 16, paddingHorizontal: 15, ...colors.shadow },
   version: { textAlign: 'center', color: colors.text.secondary, marginTop: 20, fontSize: 12 }
 });
 

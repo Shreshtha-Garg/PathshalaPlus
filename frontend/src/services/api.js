@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // 1. READ FROM ENVIRONMENT VARIABLE
 // If the variable is missing, it falls back to a localhost string (safety)
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api'; 
-console.log('API Base URL:', process.env.EXPO_PUBLIC_API_URL ? 'Using environment variable' : 'Using fallback URL');
+// console.log('API Base URL:', process.env.EXPO_PUBLIC_API_URL ? 'Using environment variable' : 'Using fallback URL');
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {

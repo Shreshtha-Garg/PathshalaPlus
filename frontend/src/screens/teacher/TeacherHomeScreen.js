@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from '@expo/vector-icons';
@@ -9,32 +9,59 @@ import { DashboardCard } from '../../components/PremiumComponents';
 
 const TeacherHomeScreen = ({ navigation }) => {
   const [name, setName] = useState('Teacher');
+  const [profilePic, setProfilePic] = useState(null);
   const [stats, setStats] = useState({
     totalStudents: 0,
     pendingPosts: 0,
   });
   const [loading, setLoading] = useState(true);
 
+  // Reload data whenever the screen comes into focus (e.g., coming back from Settings)
   useEffect(() => {
-    loadData();
-  }, []);
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadData();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const loadData = async () => {
     try {
-      // Load profile
-      const storedName = await AsyncStorage.getItem('userName');
-      if (storedName) setName(storedName);
+      // 1. INSTANT LOAD: Get cached data from device storage to save bandwidth & make UI instant
+      const cachedName = await AsyncStorage.getItem('userName');
+      const cachedPic = await AsyncStorage.getItem('userProfilePic');
+      const cachedStats = await AsyncStorage.getItem('dashboardStats');
+      
+      if (cachedName) setName(cachedName);
+      if (cachedPic) setProfilePic(cachedPic);
+      if (cachedStats) setStats(JSON.parse(cachedStats));
 
-      // Fetch stats from backend
-      const [studentsRes, postsRes] = await Promise.all([
+      // 2. BACKGROUND FETCH: Get fresh data from the backend APIs
+      const [studentsRes, postsRes, meRes] = await Promise.all([
         api.get('/teacher/students').catch(() => ({ data: [] })),
         api.get('/teacher/posts').catch(() => ({ data: [] })),
+        api.get('/teacher/me').catch(() => ({ data: {} })),
       ]);
 
-      setStats({
+      // 3. CALCULATE FRESH STATS
+      const freshStats = {
         totalStudents: studentsRes.data?.length || 0,
-        pendingPosts: postsRes.data?.filter(p => p.type === 'Homework')?.length || 0,
-      });
+        pendingPosts: postsRes.data?.length || 0,
+      };
+
+      setStats(freshStats);
+
+      // 4. UPDATE CACHE WITH FRESH DATA
+      await AsyncStorage.setItem('dashboardStats', JSON.stringify(freshStats));
+      
+      if (meRes.data?.name) {
+        setName(meRes.data.name);
+        await AsyncStorage.setItem('userName', meRes.data.name);
+      }
+      
+      if (meRes.data?.profilePhoto) {
+        setProfilePic(meRes.data.profilePhoto);
+        await AsyncStorage.setItem('userProfilePic', meRes.data.profilePhoto);
+      }
 
     } catch (error) {
       console.log('Error loading dashboard data:', error);
@@ -51,39 +78,27 @@ const TeacherHomeScreen = ({ navigation }) => {
     return 'Good Evening';
   };
 
-  // Logout confirmation
-  const handleLogout = () => {
-    Alert.alert(
-      "Logout",
-      "Are you sure you want to logout?",
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Logout", 
-          style: "destructive", 
-          onPress: async () => {
-            await AsyncStorage.clear();
-            navigation.replace('Welcome');
-          } 
-        }
-      ]
-    );
-  };
-
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
       
-      {/* Header */}
+      {/* Header (Z-Index increased so it stays above scrolled content) */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Text style={styles.brand}>Pathshala+</Text>
           <Text style={styles.greeting}>{getGreeting()}, {name}!</Text>
         </View>
         <TouchableOpacity 
-          style={styles.profileButton}
-          onPress={handleLogout}
+          style={styles.profileButtonContainer}
+          onPress={() => navigation.navigate('Settings')} 
+          activeOpacity={0.8}
         >
-          <Feather name="user" size={20} color={colors.primary} />
+          {profilePic && profilePic !== "https://cdn-icons-png.flaticon.com/512/3135/3135715.png" ? (
+            <Image source={{ uri: profilePic }} style={styles.profileImage} />
+          ) : (
+            <View style={styles.profileButtonFallback}>
+              <Feather name="user" size={24} color={colors.primary} />
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -94,7 +109,7 @@ const TeacherHomeScreen = ({ navigation }) => {
         
         {/* Quick Stats */}
         <View style={styles.statsContainer}>
-          {loading ? (
+          {loading && stats.totalStudents === 0 ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="small" color={colors.primary} />
             </View>
@@ -118,86 +133,33 @@ const TeacherHomeScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.grid}>
-          
-          {/* Row 1 - Two Cards */}
           <DashboardCard 
             title="Add Student" 
-            subtitle="New admission"
+            subtitle="Process new admission"
             icon="user-plus" 
             color={colors.cardBlue} 
-            fullWidth={true}
+            fullWidth={1}
             onPress={() => navigation.navigate('AddStudent')} 
           />
-          
           <DashboardCard 
             title="Create Post" 
-            subtitle="Homework & notices"
+            subtitle="Notices & Homework"
             icon="edit-3" 
             color={colors.cardGreen} 
-            fullWidth={true}
+            fullWidth={1}
             onPress={() => navigation.navigate('PostNotice')} 
           />
-
-          {/* Row 2 - Full Width */}
           <DashboardCard 
             title="Check Homework" 
-            subtitle="Review submissions"
+            subtitle="Submissions"
             icon="check-circle" 
             color={colors.cardIndigo}
-            fullWidth={true}
+            fullWidth={1}
             onPress={() => navigation.navigate('CheckHomework')}
           />
-
-          {/* Row 3 - Full Width */}
-          <DashboardCard 
-            title="Class List" 
-            subtitle="View all students"
-            icon="users" 
-            color={colors.cardSlate}
-            fullWidth={true}
-            onPress={() => navigation.navigate('ClassList')}
-          />
-
         </View>
 
       </ScrollView>
-
-      {/* Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navItem}>
-          <Feather name="home" size={24} color={colors.primary} />
-          <Text style={[styles.navText, { color: colors.primary }]}>Home</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.navItem}
-          onPress={() => Alert.alert("Search", "Search feature coming soon")}
-        >
-          <Feather name="search" size={24} color={colors.text.secondary} />
-          <Text style={styles.navText}>Search</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.navItem}
-          onPress={() => Alert.alert("Notifications", "No new notifications")}
-        >
-          <View style={styles.badgeContainer}>
-            <Feather name="bell" size={24} color={colors.text.secondary} />
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>3</Text>
-            </View>
-          </View>
-          <Text style={styles.navText}>Alerts</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.navItem}
-          onPress={() => navigation.navigate('Settings')}
-        >
-          <Feather name="settings" size={24} color={colors.text.secondary} />
-          <Text style={styles.navText}>Settings</Text>
-        </TouchableOpacity>
-      </View>
 
     </SafeAreaView>
   );
@@ -221,6 +183,8 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
     ...colors.cardShadow,
+    zIndex: 10, 
+    elevation: 10, 
   },
   headerLeft: {
     flex: 1,
@@ -237,20 +201,42 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontWeight: '500',
   },
-  profileButton: {
-    width: 48, 
-    height: 48, 
+  profileButtonContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    // We add the shadow to the container for better Android support
+    ...colors.shadow, 
+  },
+  profileImage: {
+    width: 72, 
+    height: 72, 
+    borderRadius: 36,
+    backgroundColor: '#f0f0f0',
+    // Added White Border
+    borderWidth: 2,
+    borderColor: colors.white,
+    // Added Shadow (Mainly works on iOS, container handles Android)
+    ...colors.shadow,
+  },
+  profileButtonFallback: {
+    width: 72, 
+    height: 72, 
     backgroundColor: colors.background, 
-    borderRadius: 24,
+    borderRadius: 36,
     justifyContent: 'center', 
     alignItems: 'center',
+    // Added White Border
+    borderWidth: 2,
+    borderColor: colors.white,
+    // Added Shadow
+    ...colors.shadow,
   },
 
   // Content
   scrollContent: { 
     paddingHorizontal: 24, 
     paddingTop: 24,
-    paddingBottom: 100,
+    paddingBottom: 40,
   },
 
   // Stats Cards
@@ -299,54 +285,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-  },
-  
-  // Bottom Navigation
-  bottomNav: {
-    position: 'absolute', 
-    bottom: 0, 
-    left: 0, 
-    right: 0, 
-    height: 80,
-    backgroundColor: colors.white, 
-    flexDirection: 'row', 
-    justifyContent: 'space-around', 
-    alignItems: 'center',
-    borderTopLeftRadius: 24, 
-    borderTopRightRadius: 24,
-    paddingBottom: 10,
-    ...colors.shadow,
-  },
-  navItem: { 
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 8,
-  },
-  navText: { 
-    fontSize: 11, 
-    marginTop: 6, 
-    color: colors.text.secondary, 
-    fontWeight: '600' 
-  },
-  badgeContainer: {
-    position: 'relative',
-  },
-  badge: {
-    position: 'absolute',
-    top: -4,
-    right: -8,
-    backgroundColor: colors.error,
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 5,
-  },
-  badgeText: {
-    color: colors.white,
-    fontSize: 10,
-    fontWeight: '700',
   },
 });
 

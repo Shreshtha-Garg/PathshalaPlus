@@ -6,28 +6,26 @@ import colors from '../../constants/colors';
 import MainLayout from '../../components/MainLayout';
 import { PremiumInput } from '../../components/PremiumComponents';
 
-const ClassListScreen = ({ navigation }) => {
+const ClassStudentsScreen = ({ route, navigation }) => {
+  const { className } = route.params;
   const [students, setStudents] = useState([]);
   const [filteredStudents, setFilteredStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
-  // Define the classes your school has
-  const classes = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
-
   useEffect(() => {
-    // We load all students in the background to make the "Global Search" fast
-    fetchStudents();
+    fetchStudentsByClass();
   }, []);
 
-  const fetchStudents = async () => {
+  const fetchStudentsByClass = async () => {
     try {
-      const response = await api.get('/teacher/students');
+      // Backend automatically sorts by srNo because of { sort: { class: 1, srNo: 1 } }
+      const response = await api.get(`/teacher/students?classFilter=${className}`);
       setStudents(response.data);
       setFilteredStudents(response.data);
       setLoading(false);
     } catch (error) {
-      console.log('Error fetching students');
+      Alert.alert('Error', 'Could not fetch students for this class.');
       setLoading(false);
     }
   };
@@ -40,36 +38,17 @@ const ClassListScreen = ({ navigation }) => {
     }
     const filtered = students.filter(s => 
       s.name.toLowerCase().includes(text.toLowerCase()) || 
-      s.srNo.includes(text) ||
-      s.class.toLowerCase().includes(text.toLowerCase())
+      s.srNo.includes(text)
     );
     setFilteredStudents(filtered);
   };
 
-  // Renders a Class Folder Card
-  const renderClassCard = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.classCard} 
-      activeOpacity={0.7}
-      onPress={() => navigation.navigate('ClassStudents', { className: item })}
-    >
-      <View style={styles.classIcon}>
-        <Feather name="users" size={24} color={colors.primary} />
-      </View>
-      <View style={styles.classInfo}>
-        <Text style={styles.classTitle}>Class {item}</Text>
-      </View>
-      <Feather name="chevron-right" size={20} color={colors.text.secondary} />
-    </TouchableOpacity>
-  );
-
-  // Renders a Student Card (Only visible when searching)
-  // Change this in src/screens/teacher/ClassListScreen.js
+  // Change this in src/screens/teacher/ClassStudentsScreen.js
   const renderStudent = ({ item }) => (
     <TouchableOpacity 
-      style={styles.studentCard} 
+      style={styles.card} 
       activeOpacity={0.7}
-      // NEW: Navigate to StudentDetails
+      // NEW: Navigate to StudentDetails and pass the entire student object!
       onPress={() => navigation.navigate('StudentDetails', { student: item })}
     >
       <View style={styles.avatar}>
@@ -77,18 +56,18 @@ const ClassListScreen = ({ navigation }) => {
       </View>
       <View style={styles.info}>
         <Text style={styles.name}>{item.name}</Text>
-        <Text style={styles.details}>Class {item.class} • Roll: {item.srNo}</Text>
+        <Text style={styles.details}>Roll No: {item.srNo}</Text>
       </View>
       <Feather name="chevron-right" size={20} color={colors.text.secondary} />
     </TouchableOpacity>
   );
 
   return (
-    <MainLayout title="Students & Classes" navigation={navigation} showBack={false} showProfileIcon={false}>
+    <MainLayout title={`Class ${className}`} navigation={navigation} showBack={true} showProfileIcon={false}>
       <View style={styles.container}>
         
         <PremiumInput 
-          placeholder="Global Search (Name, Roll, Class)..." 
+          placeholder="Search by Name or Roll No..." 
           icon="search" 
           value={search}
           onChangeText={handleSearch}
@@ -96,29 +75,17 @@ const ClassListScreen = ({ navigation }) => {
         
         {loading ? (
           <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
-        ) : search.length > 0 ? (
-          
-          // SHOW SEARCH RESULTS (ALL STUDENTS)
+        ) : (
           <FlatList 
             data={filteredStudents}
             keyExtractor={item => item._id}
             renderItem={renderStudent}
-            contentContainerStyle={{ paddingBottom: 100 }}
+            contentContainerStyle={{ paddingBottom: 40 }}
             showsVerticalScrollIndicator={false}
-            ListEmptyComponent={<Text style={styles.emptyText}>No students found.</Text>}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>No students found in Class {className}.</Text>
+            }
           />
-
-        ) : (
-          
-          // SHOW CLASS DIRECTORY (WHEN SEARCH IS EMPTY)
-          <FlatList 
-            data={classes}
-            keyExtractor={item => item}
-            renderItem={renderClassCard}
-            contentContainerStyle={{ paddingBottom: 100 }}
-            showsVerticalScrollIndicator={false}
-          />
-
         )}
       </View>
     </MainLayout>
@@ -126,26 +93,12 @@ const ClassListScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, paddingBottom: 0 },
-  
-  // Class Card Styles
-  classCard: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.white,
-    padding: 20, borderRadius: 16, marginVertical: 6, ...colors.shadow, marginHorizontal: 5
-  },
-  classIcon: {
-    width: 48, height: 48, borderRadius: 12, backgroundColor: colors.primary + '15',
-    justifyContent: 'center', alignItems: 'center', marginRight: 16
-  },
-  classInfo: { flex: 1 },
-  classTitle: { fontSize: 18, fontWeight: '700', color: colors.text.primary },
-
-  // Student Card Styles
-  studentCard: {
+  container: { flex: 1, padding: 20 },
+  card: {
     // flexDirection: 'row', alignItems: 'center', backgroundColor: colors.white,
     // padding: 15, borderRadius: 12, marginBottom: 12, ...colors.shadow
     flexDirection: 'row', alignItems: 'center', backgroundColor: colors.white,
-    padding: 20, borderRadius: 16, marginVertical: 6, ...colors.shadow, marginHorizontal: 5
+        padding: 20, borderRadius: 16, marginVertical: 6, ...colors.shadow, marginHorizontal: 5
   },
   avatar: {
     width: 45, height: 45, borderRadius: 22.5, backgroundColor: '#e3f2fd',
@@ -158,4 +111,4 @@ const styles = StyleSheet.create({
   emptyText: { textAlign: 'center', marginTop: 50, color: colors.text.secondary }
 });
 
-export default ClassListScreen;
+export default ClassStudentsScreen;

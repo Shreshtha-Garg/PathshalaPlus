@@ -151,7 +151,55 @@ if (!cloudinaryUrl) {
       res.status(500).json({ message: "Error adding student" });
     }
   });
+// Edit Student
+  router.put('/edit-student/:id', protect, async (req, res) => {
+    try {
+      await connectToDatabase();
+      
+      // Check if updating to an existing srNo or mobile (excluding this specific student)
+      const { srNo, mobile } = req.body;
+      const existingStudent = await Student.findOne({
+        $or: [{ srNo }, { mobile }],
+        _id: { $ne: req.params.id } 
+      });
 
+      if (existingStudent) {
+        return res.status(400).json({ message: "Another student with this SR No. or Mobile already exists." });
+      }
+
+      const updatedStudent = await Student.findByIdAndUpdate(
+        req.params.id,
+        req.body,
+        { new: true, runValidators: true }
+      );
+
+      if (!updatedStudent) {
+        return res.status(404).json({ message: "Student not found" });
+      }
+
+      res.json({ message: "Student Updated Successfully!", student: updatedStudent });
+    } catch (error) {
+      console.error("Error editing student:", error);
+      res.status(500).json({ message: "Error editing student" });
+    }
+  });
+
+  // Delete Student
+  router.delete('/delete-student/:id', protect, async (req, res) => {
+    try {
+      await connectToDatabase();
+      const deletedStudent = await Student.findByIdAndDelete(req.params.id);
+      
+      if (!deletedStudent) {
+        return res.status(404).json({ message: "Student not found" });
+      }
+
+      res.json({ message: "Student deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting student:", error);
+      res.status(500).json({ message: "Error deleting student" });
+    }
+  });
   router.get('/students', protect, async (req, res) => {
     try {
       await connectToDatabase();
@@ -169,14 +217,23 @@ if (!cloudinaryUrl) {
   router.post('/post-notice', protect, async (req, res) => {
     try {
       await connectToDatabase();
-      const { title, description, type, targetClass, attachmentUrl } = req.body;
+      // NEW: Extracted attachmentName from req.body
+      const { title, description, type, targetClass, attachmentUrl, attachmentName } = req.body;
+      
       const newPost = new Post({
-        title, description, type, targetClass, attachmentUrl,
+        title, 
+        description, 
+        type, 
+        targetClass, 
+        attachmentUrl,
+        attachmentName, // NEW: Saved to the database document
         createdBy: req.user._id
       });
+      
       await newPost.save();
       res.status(201).json({ message: "Posted Successfully!" });
     } catch (error) {
+      console.error("Error posting content:", error);
       res.status(500).json({ message: "Error posting content" });
     }
   });
@@ -193,6 +250,64 @@ if (!cloudinaryUrl) {
       res.json(posts);
     } catch (error) {
       res.status(500).json({ message: "Error fetching posts" });
+    }
+  });
+  // --- DELETE POST ---
+  router.delete('/delete-post/:id', protect, async (req, res) => {
+    try {
+      await connectToDatabase();
+      
+      // 1. Find the post
+      const post = await Post.findById(req.params.id);
+      
+      if (!post) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+
+      // 2. Authorization Check: Must be Admin OR the Teacher who created the post
+      if (req.user.role !== 'Admin' && post.createdBy.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ message: "Not authorized. You can only delete your own posts." });
+      }
+
+      // 3. Cloudinary Cleanup (Safely delete the attachment if it exists)
+      if (post.attachmentUrl && post.attachmentUrl.includes('cloudinary.com')) {
+        try {
+          const urlParts = post.attachmentUrl.split('/');
+          const uploadIndex = urlParts.findIndex(part => part === 'upload');
+          
+          if (uploadIndex !== -1) {
+            // 1. Get the path after the version number
+            const publicIdWithExt = urlParts.slice(uploadIndex + 2).join('/'); 
+            
+            // 2. FORCE strip the extension (.pdf, .jpg, etc.) to match the exact Public ID
+            const lastDotIndex = publicIdWithExt.lastIndexOf('.');
+            const publicId = lastDotIndex !== -1 ? publicIdWithExt.substring(0, lastDotIndex) : publicIdWithExt;
+
+            console.log(`Attempting to delete Cloudinary file: ${publicId}`);
+
+            // 3. Double-Tap Delete: Try 'raw' first (new posts)
+            let cloudResult = await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
+            
+            // 4. If not found, it might be an older post uploaded as an 'image'
+            if (cloudResult.result === 'not found') {
+              console.log("Not found as raw, trying as image...");
+              cloudResult = await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
+            }
+
+            console.log("Final Cloudinary deletion result:", cloudResult);
+          }
+        } catch (cloudErr) {
+          console.error("Cloudinary cleanup error:", cloudErr);
+        }
+      }
+
+      // 4. Delete the post from the database
+      await Post.findByIdAndDelete(req.params.id);
+      
+      res.json({ message: "Post deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting post:", error);
+      res.status(500).json({ message: "Error deleting post" });
     }
   });
 

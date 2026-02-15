@@ -115,6 +115,9 @@ const PostNoticeScreen = ({ navigation }) => {
       if (attachment) {
         if (!CLOUD_NAME) throw new Error("Cloud Name is missing in .env");
 
+        // FIX: Change 'auto/upload' to just 'upload' in the URL
+        const UPLOAD_URL = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/upload`; 
+
         const data = new FormData();
         data.append('file', {
           uri: attachment.uri,
@@ -122,9 +125,15 @@ const PostNoticeScreen = ({ navigation }) => {
           type: attachment.mimeType
         });
         data.append('upload_preset', UPLOAD_PRESET);
+        
+        // FIX: Explicitly set resource_type to 'raw' for non-images
+        if (attachment.mimeType !== 'image/jpeg' && !attachment.mimeType.startsWith('image/')) {
+          data.append('resource_type', 'raw');
+        }
+        
         data.append('folder', `pathshala_plus/posts/${type.toLowerCase()}s`);
 
-        const uploadRes = await fetch(CLOUDINARY_UPLOAD_URL, {
+        const uploadRes = await fetch(UPLOAD_URL, {
           method: 'POST',
           body: data,
           headers: { 'Content-Type': 'multipart/form-data' },
@@ -135,7 +144,7 @@ const PostNoticeScreen = ({ navigation }) => {
         if (uploadData.secure_url) {
           uploadedAttachmentUrl = uploadData.secure_url;
         } else {
-          throw new Error("Failed to upload attachment to cloud.");
+          throw new Error(uploadData.error?.message || "Failed to upload attachment to cloud.");
         }
       }
 
@@ -145,7 +154,8 @@ const PostNoticeScreen = ({ navigation }) => {
         description: description.trim(),
         targetClass: targetClass.trim(),
         type,
-        attachmentUrl: uploadedAttachmentUrl 
+        attachmentUrl: uploadedAttachmentUrl,
+        attachmentName: attachment ? attachment.name : undefined // <--- ADDED THIS LINE!
       });
 
       Alert.alert(
@@ -154,7 +164,7 @@ const PostNoticeScreen = ({ navigation }) => {
         [{ text: 'Done', onPress: () => navigation.goBack() }]
       );
 
-      // Clear the form on successful post (optional but good UX)
+      // Clear the form on successful post
       setTitle('');
       setDescription('');
       setTargetClass('');
@@ -338,8 +348,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: { 
-    fontSize: 18, 
-    fontWeight: '700',
+    fontSize: 24, 
+    fontWeight: '800',
     color: colors.text.primary,
   },
   scrollContent: { 

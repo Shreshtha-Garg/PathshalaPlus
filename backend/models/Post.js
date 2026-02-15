@@ -9,10 +9,13 @@ const postSchema = new mongoose.Schema({
   
   title: { type: String, required: true },
   description: { type: String },
+  
   attachmentUrl: { type: String }, 
+  attachmentName: { type: String }, // NEW: Saves the original file name
+  
   targetClass: { type: String, default: 'All' },
   
-  // --- NEW FIELD: Link to Teacher Model ---
+  // Link to Teacher Model
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Teacher',
