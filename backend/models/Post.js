@@ -11,7 +11,7 @@ const postSchema = new mongoose.Schema({
   description: { type: String },
   
   attachmentUrl: { type: String }, 
-  attachmentName: { type: String }, // NEW: Saves the original file name
+  attachmentName: { type: String },
   
   targetClass: { type: String, default: 'All' },
   
@@ -22,8 +22,8 @@ const postSchema = new mongoose.Schema({
     required: true
   },
 
-  // Auto delete after 10 days
-  createdAt: { type: Date, default: Date.now, expires: 864000 } 
+  // Auto delete after 40 days
+  createdAt: { type: Date, default: Date.now, expires: 3456000 } 
 });
 
 export default mongoose.model('Post', postSchema);

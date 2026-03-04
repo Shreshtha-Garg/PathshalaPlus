@@ -1,4 +1,4 @@
-  import express from 'express';
+import express from 'express';
   import jwt from 'jsonwebtoken';
   import Student from '../models/Student.js'; 
   import Post from '../models/Post.js'; 
@@ -41,8 +41,8 @@ if (!cloudinaryUrl) {
   router.post('/login', async (req, res) => {
     try {
       await connectToDatabase();
-      const { email, password } = req.body;
-      const teacher = await Teacher.findOne({ email });
+      const { mobile, password } = req.body;
+      const teacher = await Teacher.findOne({ mobile });
 
       if (!teacher || teacher.password !== password) {
         return res.status(401).json({ message: "Invalid Credentials" });
@@ -51,7 +51,7 @@ if (!cloudinaryUrl) {
       res.json({ 
         _id: teacher._id,
         name: teacher.name, 
-        email: teacher.email,
+        mobile: teacher.mobile, 
         role: teacher.role,
         profilePhoto: teacher.profilePhoto,
         token: generateToken(teacher._id) 
@@ -121,7 +121,6 @@ if (!cloudinaryUrl) {
         teacher: {
           _id: teacher._id,
           name: teacher.name,
-          email: teacher.email,
           mobile: teacher.mobile,
           profilePhoto: teacher.profilePhoto
         }
@@ -341,12 +340,12 @@ if (!cloudinaryUrl) {
   router.post('/create-teacher', protect, admin, async (req, res) => {
     try {
       await connectToDatabase();
-      const { name, email, password, mobile, role } = req.body;
+      const { name, password, mobile, role } = req.body;
       
-      const exists = await Teacher.findOne({ email });
-      if (exists) return res.status(400).json({ message: "Teacher already exists" });
+      const exists = await Teacher.findOne({ mobile });
+      if (exists) return res.status(400).json({ message: "Teacher with this mobile number already exists" });
 
-      const teacher = new Teacher({ name, email, password, mobile, role: role || 'Teacher' });
+      const teacher = new Teacher({ name, password, mobile, role: role || 'Teacher' });
       await teacher.save();
       
       res.status(201).json({ message: "New Teacher Account Created" });
@@ -370,10 +369,10 @@ if (!cloudinaryUrl) {
   router.post('/forgot-password', async (req, res) => {
     try {
       await connectToDatabase();
-      const { email } = req.body;
-      const teacher = await Teacher.findOne({ email });
-      if (!teacher) return res.status(404).json({ message: "Email not found" });
-      res.json({ message: "Password reset link sent to email (Mock)" });
+      const { mobile } = req.body;
+      const teacher = await Teacher.findOne({ mobile });
+      if (!teacher) return res.status(404).json({ message: "Mobile number not found" });
+      res.json({ message: "Password reset link sent via SMS (Mock)" });
     } catch (error) {
       res.status(500).json({ message: "Server error" });
     }

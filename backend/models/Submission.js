@@ -16,6 +16,8 @@ const submissionSchema = new mongoose.Schema({
   
   // The photo/PDF the student uploaded
   fileUrl: { type: String, required: true },
+
+  fileName: { type: String },
   
   // Optional: Teacher's remarks (Good, Redo, etc.)
   remarks: { type: String },

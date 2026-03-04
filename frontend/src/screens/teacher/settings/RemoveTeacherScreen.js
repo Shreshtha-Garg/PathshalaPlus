@@ -55,7 +55,7 @@ const RemoveTeacherScreen = ({ navigation }) => {
         </View>
         <View style={{ flex: 1 }}>
             <Text style={styles.name}>{item.name}</Text>
-            <Text style={styles.email}>{item.email}</Text>
+            <Text style={styles.mobile}>{item.mobile}</Text>
             <Text style={styles.role}>{item.role}</Text>
         </View>
       </View>
@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
   },
   avatarText: { fontSize: 18, fontWeight: 'bold', color: colors.primary },
   name: { fontSize: 16, fontWeight: 'bold', color: colors.text.primary },
-  email: { fontSize: 12, color: colors.text.secondary },
+  mobile: { fontSize: 12, color: colors.text.secondary },
   role: { fontSize: 10, color: colors.primary, marginTop: 2, fontWeight: '600', textTransform: 'uppercase' },
   deleteBtn: { padding: 10 },
   emptyText: { textAlign: 'center', marginTop: 50, color: colors.text.secondary }

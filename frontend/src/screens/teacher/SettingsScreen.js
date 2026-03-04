@@ -10,7 +10,6 @@ const SettingsScreen = ({ navigation }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Added focus listener so the image updates immediately if they change it in Edit Profile
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       fetchProfile();
@@ -23,22 +22,33 @@ const SettingsScreen = ({ navigation }) => {
     try {
       const response = await api.get('/teacher/me');
       setUser(response.data);
+      
+      // 🔥 FIX: Cache the newly fetched profile photo so it's ready for next time
+      if (response.data.profilePhoto) {
+        await AsyncStorage.setItem('profilePhoto', response.data.profilePhoto);
+      }
     } catch (error) {
       console.log("Error fetching profile, falling back to local storage");
       const name = await AsyncStorage.getItem('userName');
       const role = await AsyncStorage.getItem('userRole');
+      const cachedPhoto = await AsyncStorage.getItem('profilePhoto'); // 🔥 FIX: Get cached photo
+      
       setUser({ 
         name: name || "Teacher", 
         role: role || "Teacher", 
-        profilePhoto: "https://cdn-icons-png.flaticon.com/512/3135/3135715.png" 
+        profilePhoto: cachedPhoto || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png" 
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const MenuItem = ({ icon, label, onPress, isDestructive = false }) => (
-    <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.7}>
+  const MenuItem = ({ icon, label, onPress, isDestructive = false, isLast = false }) => (
+    <TouchableOpacity 
+      style={[styles.menuItem, isLast && { borderBottomWidth: 0 }]} 
+      onPress={onPress} 
+      activeOpacity={0.7}
+    >
       <View style={styles.menuLeft}>
         <View style={[styles.iconBox, isDestructive && styles.destructiveIconBox]}>
           <Feather name={icon} size={20} color={isDestructive ? colors.error : colors.primary} />
@@ -58,7 +68,6 @@ const SettingsScreen = ({ navigation }) => {
   }
 
   return (
-    // NEW: Passed showProfileIcon={false} to hide the redundant top-right icon
     <MainLayout title="Settings" navigation={navigation} showBack={false} showProfileIcon={false}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         
@@ -71,7 +80,7 @@ const SettingsScreen = ({ navigation }) => {
           <View style={styles.profileInfo}>
             <Text style={styles.name}>{user?.name}</Text>
             <Text style={styles.role}>{user?.role}</Text>
-            <Text style={styles.email}>{user?.email}</Text>
+            <Text style={styles.mobile}>{user?.mobile}</Text>
           </View>
         </View>
 
@@ -92,6 +101,7 @@ const SettingsScreen = ({ navigation }) => {
             icon="user" 
             label="View Full Profile" 
             onPress={() => navigation.navigate('ViewProfile')} 
+            isLast={true} 
           />
         </View>
 
@@ -109,6 +119,7 @@ const SettingsScreen = ({ navigation }) => {
                 icon="trash-2" 
                 label="Remove Teacher" 
                 onPress={() => navigation.navigate('RemoveTeacher')} 
+                isLast={true}
               />
             </View>
           </>
@@ -121,9 +132,11 @@ const SettingsScreen = ({ navigation }) => {
             icon="info" 
             label="About Pathshala+" 
             onPress={() => navigation.navigate('AboutPathshala')} 
+            isLast={true}
           />
         </View>
 
+        {/* 6. Logout Container */}
         <View style={styles.logoutContainer}>
           <MenuItem 
             icon="log-out" 
@@ -142,6 +155,7 @@ const SettingsScreen = ({ navigation }) => {
                 ])
             }} 
             isDestructive={true} 
+            isLast={true}
           />
         </View>
         
@@ -166,7 +180,6 @@ const styles = StyleSheet.create({
     borderRadius: 36, 
     marginRight: 15, 
     backgroundColor: '#f0f0f0',
-    // ADDED: 2px white border and shadow
     borderWidth: 2,
     borderColor: colors.white,
     ...colors.shadow
@@ -174,7 +187,7 @@ const styles = StyleSheet.create({
   profileInfo: { flex: 1 },
   name: { fontSize: 18, fontWeight: 'bold', color: colors.text.primary },
   role: { fontSize: 14, fontWeight: '600', color: colors.primary, marginTop: 2 },
-  email: { fontSize: 12, color: colors.text.secondary, marginTop: 2 },
+  mobile: { fontSize: 12, color: colors.text.secondary, marginTop: 2 },
   
   editButton: { 
     flexDirection: 'row', justifyContent: 'center', alignItems: 'center', 
@@ -192,7 +205,6 @@ const styles = StyleSheet.create({
   menuText: { fontSize: 16, color: colors.text.primary },
   destructiveText: { color: colors.error, fontWeight: 'bold' },
   
-  // UX fix: Added margin top to separate logout from other settings
   logoutContainer: { marginTop: 25, backgroundColor: colors.white, borderRadius: 16, paddingHorizontal: 15, ...colors.shadow },
   version: { textAlign: 'center', color: colors.text.secondary, marginTop: 20, fontSize: 12 }
 });

@@ -34,7 +34,7 @@ const SplashScreen = ({ navigation }) => {
           if (role === 'Teacher' || role === 'Admin') {
             navigation.replace('TeacherRoot');
           } else {
-            navigation.replace('StudentHome');
+            navigation.replace('StudentRoot');
           }
         } else {
           // No session - go to welcome screen

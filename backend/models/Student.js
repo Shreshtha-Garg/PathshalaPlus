@@ -4,7 +4,7 @@ const studentSchema = new mongoose.Schema({
   // --- Login & Identity ---
   srNo: { type: String, required: true, unique: true }, 
   name: { type: String, required: true },
-  email: { type: String, unique: true, sparse: true }, 
+  // email: { type: String, unique: true, sparse: true }, 
   mobile: { type: String, required: true, unique: true },
   password: { type: String, default: "123456" },
   class: { type: String, required: true },

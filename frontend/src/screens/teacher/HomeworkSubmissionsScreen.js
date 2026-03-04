@@ -38,8 +38,7 @@ const HomeworkSubmissionsScreen = ({ route, navigation }) => {
   const pendingStudents = allStudents.filter(student => !submittedStudentIds.includes(student._id));
 
   const handleViewSubmission = (submission) => {
-    // TODO: Navigate to evaluation screen
-    Alert.alert("View Submission", `Open file submitted by ${submission.studentId?.name || 'Student'}`);
+    navigation.navigate('ViewStudentSubmission', { submission });
   };
 
   const renderSubmittedItem = ({ item }) => {
@@ -76,7 +75,7 @@ const HomeworkSubmissionsScreen = ({ route, navigation }) => {
           </Text>
           <Text style={styles.studentMeta}>SR No: {student.srNo || 'N/A'}</Text>
           <View style={styles.timeRow}>
-            <Feather name="clock" size={11} color={colors.text.tertiary} />
+            <Feather name="calendar" size={11} color={colors.text.tertiary} />
             <Text style={styles.timeText}>{submitDate}</Text>
           </View>
         </View>

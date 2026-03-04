@@ -23,27 +23,43 @@ const MainLayout = ({
   }, [showProfileIcon]);
 
   const loadProfilePic = async () => {
-    try {
-      // 1. Try to load from Local Storage (Instant)
-      const cachedPic = await AsyncStorage.getItem('userProfilePic');
-      
-      if (cachedPic && cachedPic !== "https://cdn-icons-png.flaticon.com/512/3135/3135715.png") {
-        setProfilePic(cachedPic);
-      } else {
-        // 2. If no image in storage, fetch from Backend
-        const response = await api.get('/teacher/me');
-        const fetchedPic = response.data?.profilePhoto;
+  try {
+    const cachedPic = await AsyncStorage.getItem('userProfilePic');
+    const role = await AsyncStorage.getItem('userRole');
 
-        if (fetchedPic && fetchedPic !== "https://cdn-icons-png.flaticon.com/512/3135/3135715.png") {
-          setProfilePic(fetchedPic);
-          // Save it for next time to save bandwidth
-          await AsyncStorage.setItem('userProfilePic', fetchedPic);
-        }
-      }
-    } catch (error) {
-      console.log("Error loading profile pic in MainLayout:", error.message);
+    if (
+      cachedPic &&
+      cachedPic !== "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+    ) {
+      setProfilePic(cachedPic);
+      return;
     }
-  };
+
+    let endpoint = '';
+
+    if (role === 'Teacher') {
+      endpoint = '/teacher/me';
+    } else if (role === 'Student') {
+      endpoint = '/student/me';
+    }
+
+    if (!endpoint) return;
+
+    const response = await api.get(endpoint);
+    const fetchedPic = response.data?.profilePhoto;
+
+    if (
+      fetchedPic &&
+      fetchedPic !== "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+    ) {
+      setProfilePic(fetchedPic);
+      await AsyncStorage.setItem('userProfilePic', fetchedPic);
+    }
+
+  } catch (error) {
+    console.log("Error loading profile pic in MainLayout:", error.message);
+  }
+};
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>

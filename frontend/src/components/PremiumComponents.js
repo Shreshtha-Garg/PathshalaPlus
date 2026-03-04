@@ -27,7 +27,7 @@ export const PremiumInput = ({
       // Alphanumeric only, uppercase
       cleanedText = text.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     }
-    else if (type === 'email') {
+    else if (type === 'mobile') {
       // Remove spaces, lowercase
       cleanedText = text.replace(/\s/g, '').toLowerCase();
     }
@@ -38,13 +38,13 @@ export const PremiumInput = ({
   const getKeyboardType = () => {
     if (keyboardType) return keyboardType;
     if (type === 'numeric') return 'number-pad';
-    if (type === 'email') return 'email-address';
+    if (type === 'mobile') return 'phone-pad';
     return 'default';
   };
 
   const getAutoCapitalize = () => {
     if (autoCapitalize) return autoCapitalize;
-    if (type === 'email' || type === 'ifsc') return 'none';
+    if (type === 'mobile' || type === 'ifsc') return 'none';
     return 'sentences';
   };
 

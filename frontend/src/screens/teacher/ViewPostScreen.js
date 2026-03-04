@@ -4,6 +4,7 @@ import { Feather } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as IntentLauncher from 'expo-intent-launcher';
+import AsyncStorage from '@react-native-async-storage/async-storage'; // NEW IMPORT
 import colors from '../../constants/colors';
 import MainLayout from '../../components/MainLayout';
 import api from '../../services/api';
@@ -17,6 +18,21 @@ const ViewPostScreen = ({ route, navigation }) => {
   const [fileIcon, setFileIcon] = useState('file');
   const [fileColor, setFileColor] = useState(colors.text.secondary);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [userRole, setUserRole] = useState(null); // STATE TO HOLD ROLE
+
+  // FETCH USER ROLE TO HIDE DELETE BUTTON FOR STUDENTS
+  useEffect(() => {
+    const fetchRole = async () => {
+      try {
+        const role = await AsyncStorage.getItem('userRole');
+        setUserRole(role);
+      } catch (error) {
+        console.log("Error fetching role:", error);
+      }
+    };
+    fetchRole();
+  }, []);
+
   useEffect(() => {
     if (post.attachmentUrl) {
       // Get filename
@@ -71,6 +87,7 @@ const ViewPostScreen = ({ route, navigation }) => {
       default: return 'application/octet-stream';
     }
   };
+
   // --- DELETE POST LOGIC ---
   const handleDeletePost = () => {
     Alert.alert(
@@ -99,6 +116,7 @@ const ViewPostScreen = ({ route, navigation }) => {
       ]
     );
   };
+
   // Download file with proper error handling
   const downloadFile = async (localUri) => {
     try {
@@ -343,22 +361,24 @@ const ViewPostScreen = ({ route, navigation }) => {
           </View>
         )}
 
-        {/* --- DELETE POST BUTTON --- */}
-        <TouchableOpacity 
-          style={styles.deletePostBtn} 
-          onPress={handleDeletePost}
-          activeOpacity={0.7}
-          disabled={isDeleting}
-        >
-          {isDeleting ? (
-            <ActivityIndicator size="small" color={colors.error} />
-          ) : (
-            <>
-              <Feather name="trash-2" size={18} color={colors.error} />
-              <Text style={styles.deletePostText}>Delete Post</Text>
-            </>
-          )}
-        </TouchableOpacity>
+        {/* --- DELETE POST BUTTON (ONLY FOR TEACHERS/ADMINS) --- */}
+        {userRole !== 'Student' && (
+          <TouchableOpacity 
+            style={styles.deletePostBtn} 
+            onPress={handleDeletePost}
+            activeOpacity={0.7}
+            disabled={isDeleting}
+          >
+            {isDeleting ? (
+              <ActivityIndicator size="small" color={colors.error} />
+            ) : (
+              <>
+                <Feather name="trash-2" size={18} color={colors.error} />
+                <Text style={styles.deletePostText}>Delete Post</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
 
       </ScrollView>
     </MainLayout>

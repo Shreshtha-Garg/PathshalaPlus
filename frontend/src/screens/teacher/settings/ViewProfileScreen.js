@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Image, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../../services/api';
 import colors from '../../../constants/colors';
 import MainLayout from '../../../components/MainLayout';
@@ -10,13 +11,53 @@ const ViewProfileScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/teacher/me').then(res => {
-      setUser(res.data);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    fetchProfile();
   }, []);
 
-  // Custom Read-Only Field Component
+  const fetchProfile = async () => {
+    try {
+      // 1. Try to grab everything from AsyncStorage FIRST
+      const name = await AsyncStorage.getItem('userName');
+      const role = await AsyncStorage.getItem('userRole');
+      const mobile = await AsyncStorage.getItem('userMobile'); // Assuming we start saving this
+      const cachedPhoto = await AsyncStorage.getItem('profilePhoto');
+
+      // 2. If we have the essential data, set it and EXIT early (No API call!)
+      if (name && role) {
+        setUser({
+          name: name,
+          role: role,
+          mobile: mobile || "Not Provided",
+          profilePhoto: cachedPhoto || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+        });
+        setLoading(false);
+        return; 
+      }
+
+      // 3. ONLY if AsyncStorage is empty, fetch from the backend
+      const response = await api.get('/teacher/me');
+      const userData = response.data;
+      setUser(userData);
+      
+      // 4. Cache the newly fetched data so we don't have to fetch it next time
+      if (userData.name) await AsyncStorage.setItem('userName', userData.name);
+      if (userData.role) await AsyncStorage.setItem('userRole', userData.role);
+      if (userData.mobile) await AsyncStorage.setItem('userMobile', userData.mobile);
+      if (userData.profilePhoto) await AsyncStorage.setItem('profilePhoto', userData.profilePhoto);
+
+    } catch (error) {
+      console.log('Error fetching profile:', error);
+      // Absolute fallback if everything fails
+      setUser({
+        name: "Teacher",
+        role: "Teacher",
+        profilePhoto: "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const ReadOnlyField = ({ label, value, icon }) => (
     <View style={styles.fieldContainer}>
       <View style={styles.iconBox}>
@@ -49,8 +90,6 @@ const ViewProfileScreen = ({ navigation }) => {
         <View style={styles.card}>
             <ReadOnlyField label="Full Name" value={user?.name} icon="user" />
             <View style={styles.divider} />
-            <ReadOnlyField label="Email Address" value={user?.email} icon="mail" />
-            <View style={styles.divider} />
             <ReadOnlyField label="Mobile Number" value={user?.mobile} icon="smartphone" />
             <View style={styles.divider} />
             <ReadOnlyField label="Account Role" value={user?.role} icon="shield" />
@@ -64,7 +103,16 @@ const ViewProfileScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { padding: 20 },
   header: { alignItems: 'center', marginBottom: 30 },
-  avatar: { width: 100, height: 100, borderRadius: 50, marginBottom: 15, backgroundColor: '#f0f0f0' },
+  avatar: { 
+    width: 200, 
+    height: 200, 
+    borderRadius: 100, 
+    marginBottom: 15, 
+    backgroundColor: '#f0f0f0',
+    borderWidth: 3,
+    borderColor: colors.white,
+    ...colors.shadow 
+  },
   name: { fontSize: 24, fontWeight: 'bold', color: colors.text.primary },
   role: { fontSize: 16, color: colors.primary, fontWeight: '600', marginTop: 5 },
   

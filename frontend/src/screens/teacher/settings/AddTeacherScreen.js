@@ -6,7 +6,7 @@ import MainLayout from '../../../components/MainLayout';
 import { PremiumInput, PremiumButton, PremiumSelect } from '../../../components/PremiumComponents';
 
 const AddTeacherScreen = ({ navigation }) => {
-  const [form, setForm] = useState({ name: '', email: '', password: '', mobile: '', role: 'Teacher' });
+  const [form, setForm] = useState({ name: '', password: '', mobile: '', role: 'Teacher' });
   const [errors, setErrors] = useState({}); // Track errors for red borders
   const [loading, setLoading] = useState(false);
 
@@ -20,20 +20,13 @@ const AddTeacherScreen = ({ navigation }) => {
       isValid = false;
     }
 
-    // 2. Email Validation (Regex)
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!form.email.trim() || !emailRegex.test(form.email)) {
-      newErrors.email = true;
-      isValid = false;
-    }
-
-    // 3. Mobile Validation (10 digits)
+    // 2. Mobile Validation (10 digits)
     if (!form.mobile.trim() || form.mobile.length !== 10) {
       newErrors.mobile = true;
       isValid = false;
     }
 
-    // 4. Password Validation
+    // 3. Password Validation
     if (!form.password.trim()) {
       newErrors.password = true;
       isValid = false;
@@ -77,15 +70,7 @@ const AddTeacherScreen = ({ navigation }) => {
                 placeholder="e.g. John Doe"
                 hasError={errors.name}
             />
-            <PremiumInput 
-                label="Email Address *" 
-                value={form.email} 
-                onChangeText={t => { setForm({...form, email: t}); if(errors.email) setErrors({...errors, email: false}); }} 
-                icon="mail" 
-                placeholder="teacher@school.com" 
-                keyboardType="email-address"
-                hasError={errors.email}
-            />
+            
             <PremiumInput 
                 label="Mobile Number *" 
                 value={form.mobile} 
