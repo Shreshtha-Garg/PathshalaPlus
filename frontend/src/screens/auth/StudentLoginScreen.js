@@ -29,7 +29,7 @@ const StudentLoginScreen = ({ navigation }) => {
     fillSavedCredentials();
   }, []);
 
-  const handleLogin = async () => {
+const handleLogin = async () => {
     if (!mobile.trim() || !password.trim()) {
       Alert.alert('Missing Fields', 'Please enter both mobile number and password.');
       return;
@@ -48,6 +48,7 @@ const StudentLoginScreen = ({ navigation }) => {
       });
 
       const { token, name, _id, studentClass, mobile:serverMobile } = response.data;
+      
       // Save Session + Credentials
       await AsyncStorage.multiSet([
         ['userToken', token],
@@ -64,9 +65,28 @@ const StudentLoginScreen = ({ navigation }) => {
 
     } catch (error) {
       setLoading(false);
-      const msg = error.response?.data?.message || 'Invalid credentials.';
-      console.error('Login Error:', error);
-      Alert.alert('Login Failed', msg);
+      // console.error('Login Error:', error);
+
+      // 🔥 IMPROVED ERROR HANDLING
+      let errorMessage = 'An unexpected error occurred. Please try again.';
+
+      if (error.response) {
+        // The server responded with a status code outside the 2xx range
+        if (error.response.status === 401) {
+          errorMessage = 'Invalid credentials. Please check your mobile number and password.';
+        } 
+          else if (error.response.data && error.response.data.message) {
+            errorMessage = error.response.data.message; // Use the clean message from your backend
+          }
+        else if (error.response.status >= 500) {
+          errorMessage = 'Server error. Please try again later.';
+        }
+      } else if (error.request) {
+        // The request was made but no response was received (e.g., network error)
+        errorMessage = 'Network error. Please check your internet connection.';
+      }
+
+      Alert.alert('Login Failed', errorMessage);
     }
   };
 

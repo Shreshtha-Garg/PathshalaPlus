@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, RefreshControl, Platform
+  ActivityIndicator, RefreshControl, Platform, DeviceEventEmitter
 } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -30,6 +30,10 @@ const StudentHomeScreen = ({ navigation }) => {
 
       setStats(response.data.stats);
       setRecentPosts(response.data.recentPosts);
+      DeviceEventEmitter.emit('updateStudentBadges', {
+        homework: response.data.stats.pendingHomework,
+        updates: response.data.stats.newNotices
+      });
 
     } catch (error) {
       console.log('Error loading student dashboard:', error);
@@ -71,7 +75,7 @@ const StudentHomeScreen = ({ navigation }) => {
     if (type === 'Notice') {
       return { name: 'bell', family: 'Feather', color: colors.primary };
     } else if (type === 'Homework') {
-      console.log('hw is submitted:', isSubmitted); // Debug log to check submission status
+      // console.log('hw is submitted:', isSubmitted); // Debug log to check submission status
       // Show Checkmark if submitted, otherwise show Clock
       return isSubmitted
         ? { name: 'checkbox-marked-circle-outline', family: 'MaterialCommunity', color: colors.success }

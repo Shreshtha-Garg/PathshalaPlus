@@ -166,6 +166,13 @@ if (!cloudinaryUrl) {
         return res.status(400).json({ message: "Another student with this SR No. or Mobile already exists." });
       }
 
+      // Handle the optional password reset
+      if (req.body.newPassword) {
+        req.body.password = req.body.newPassword;
+      }
+      // Remove newPassword from req.body so it doesn't get saved as a random field in DB
+      delete req.body.newPassword;
+
       const updatedStudent = await Student.findByIdAndUpdate(
         req.params.id,
         req.body,

@@ -59,7 +59,7 @@ const SplashScreen = ({ navigation }) => {
       </Animated.View>
       
       <View style={styles.footer}>
-        <Text style={styles.footerText}>Premium School Management</Text>
+        <Text style={styles.footerText}>Premium School Management System</Text>
       </View>
     </View>
   );

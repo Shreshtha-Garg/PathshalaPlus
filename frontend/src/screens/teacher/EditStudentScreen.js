@@ -11,10 +11,8 @@ import {
 } from '../../components/PremiumComponents';
 
 const EditStudentScreen = ({ route, navigation }) => {
-  // Catch the student data passed from the Details screen
   const { student } = route.params;
 
-  // Initialize state with the existing student data
   const [formData, setFormData] = useState({
     // Academic
     srNo: student.srNo || '',
@@ -42,59 +40,51 @@ const EditStudentScreen = ({ route, navigation }) => {
     bankName: student.bankName || '',
     bankAccountNo: student.bankAccountNo || '',
     bankIfsc: student.bankIfsc || '',
+
+    // Security (Optional Password Reset)
+    newPassword: '', 
   });
 
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  // Update form field
   const updateField = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: false }));
     }
   };
 
-  // Validation
   const validateForm = () => {
     const newErrors = {};
 
-    // 1. Academic (Required)
     if (!formData.srNo.trim()) newErrors.srNo = true;
     if (!formData.name.trim()) newErrors.name = true;
     if (!formData.mobile.trim()) newErrors.mobile = true;
     if (!formData.class) newErrors.class = true;
 
-    // 2. Parents (Required)
     if (!formData.fatherName.trim()) newErrors.fatherName = true;
     if (!formData.fatherAadharNo.trim()) newErrors.fatherAadharNo = true;
     if (!formData.motherName.trim()) newErrors.motherName = true;
     if (!formData.motherAadharNo.trim()) newErrors.motherAadharNo = true;
 
-    // 3. Personal (Required)
     if (!formData.dob) newErrors.dob = true;
     if (!formData.address.trim()) newErrors.address = true;
     if (!formData.aadharNo.trim()) newErrors.aadharNo = true;
     if (!formData.category) newErrors.category = true;
 
-    // 4. Ration Card Logic
     if (!formData.rationCardType) {
         newErrors.rationCardType = true;
     } else if (formData.rationCardType !== 'None' && !formData.rationCardNo.trim()) {
         newErrors.rationCardNo = true;
     }
 
-    // --- Format Checks ---
-
-    // Mobile validation (10 digits)
     if (formData.mobile && formData.mobile.length !== 10) {
       newErrors.mobile = true;
       Alert.alert('Invalid Mobile', 'Mobile number must be exactly 10 digits.');
       return false;
     }
 
-    // Aadhar validation (12 digits)
     if (formData.aadharNo && formData.aadharNo.length !== 12) {
       newErrors.aadharNo = true;
       Alert.alert('Invalid Aadhar', 'Student Aadhar number must be exactly 12 digits.');
@@ -111,10 +101,15 @@ const EditStudentScreen = ({ route, navigation }) => {
       return false;
     }
 
-    // IFSC validation (11 characters) - Only if filled
     if (formData.bankIfsc && formData.bankIfsc.length > 0 && formData.bankIfsc.length !== 11) {
       newErrors.bankIfsc = true;
       Alert.alert('Invalid IFSC', 'IFSC code must be exactly 11 characters.');
+      return false;
+    }
+
+    // Password Validation
+    if (formData.newPassword && formData.newPassword.length < 6) {
+      Alert.alert('Weak Password', 'The new password must be at least 6 characters long.');
       return false;
     }
 
@@ -127,7 +122,6 @@ const EditStudentScreen = ({ route, navigation }) => {
     return true;
   };
 
-  // Submit
   const handleUpdate = async () => {
     if (!validateForm()) return;
 
@@ -139,9 +133,12 @@ const EditStudentScreen = ({ route, navigation }) => {
         'Success!',
         'Student details updated successfully.',
         [{ text: 'OK', onPress: () => {
-          // ✅ FIX: Go back to StudentDetails with updated student data
+          // Remove newPassword from local student object to keep it clean
+          const updatedStudentData = { ...student, ...formData };
+          delete updatedStudentData.newPassword;
+
           navigation.navigate('StudentDetails', { 
-            student: { ...student, ...formData } 
+            student: updatedStudentData 
           });
         }}]
       );
@@ -157,7 +154,6 @@ const EditStudentScreen = ({ route, navigation }) => {
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardView}>
         
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <Feather name="arrow-left" size={24} color={colors.text.primary} />
@@ -236,6 +232,29 @@ const EditStudentScreen = ({ route, navigation }) => {
             <PremiumInput label="IFSC Code" value={formData.bankIfsc} onChangeText={(val) => updateField('bankIfsc', val)} placeholder="11-character IFSC" icon="hash" type="ifsc" maxLength={11} hasError={errors.bankIfsc} />
           </View>
 
+          {/* Section 5: Security (Optional Reset) */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionIconContainer}>
+                <Feather name="lock" size={20} color={colors.error} />
+              </View>
+              <Text style={styles.sectionTitle}>Account Security</Text>
+            </View>
+
+            <Text style={{ fontSize: 13, color: colors.text.secondary, marginBottom: 15 }}>
+              Leave this blank unless you need to reset the student's password.
+            </Text>
+
+            <PremiumInput 
+              label="New Password" 
+              value={formData.newPassword} 
+              onChangeText={(val) => updateField('newPassword', val)} 
+              placeholder="Enter new password" 
+              icon="key" 
+              secureTextEntry={true} 
+            />
+          </View>
+
           {/* Submit Button */}
           <View style={styles.buttonContainer}>
             <PremiumButton title="Save Changes" onPress={handleUpdate} loading={loading} color={colors.primary} />
@@ -272,4 +291,4 @@ const styles = StyleSheet.create({
   buttonContainer: { marginTop: 10, marginBottom: 20 },
 });
 
-export default EditStudentScreen;
+export default EditStudentScreen; 
