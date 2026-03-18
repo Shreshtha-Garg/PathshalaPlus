@@ -23,7 +23,7 @@ const postSchema = new mongoose.Schema({
   },
 
   // Auto delete after 40 days
-  createdAt: { type: Date, default: Date.now, expires: 3456000 } 
+  createdAt: { type: Date, default: Date.now} 
 });
 
 export default mongoose.model('Post', postSchema);

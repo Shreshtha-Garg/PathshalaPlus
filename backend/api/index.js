@@ -5,6 +5,7 @@ import cors from 'cors';
 import connectToDatabase from '../db.js'; 
 import teacherRoutes from '../routes/teacherRoutes.js'; 
 import studentRoutes from '../routes/studentRoutes.js';
+import cronRoutes from '../routes/cronRoutes.js';
 
 const app = express();
 
@@ -14,6 +15,7 @@ app.use(express.json());
 // Routes
 app.use('/api/teacher', teacherRoutes);
 app.use('/api/student', studentRoutes);
+app.use('/api/cron', cronRoutes);
 
 app.get('/', (req, res) => {
   res.json({
