@@ -258,7 +258,7 @@ if (!cloudinaryUrl) {
       res.status(500).json({ message: "Error fetching posts" });
     }
   });
-  // --- DELETE POST ---
+// --- DELETE POST & ASSOCIATED SUBMISSIONS ---
   router.delete('/delete-post/:id', protect, async (req, res) => {
     try {
       await connectToDatabase();
@@ -275,42 +275,49 @@ if (!cloudinaryUrl) {
         return res.status(403).json({ message: "Not authorized. You can only delete your own posts." });
       }
 
-      // 3. Cloudinary Cleanup (Safely delete the attachment if it exists)
-      if (post.attachmentUrl && post.attachmentUrl.includes('cloudinary.com')) {
+      // HELPER: Cloudinary Deletion Logic
+      const deleteFileFromCloudinary = async (fileUrl) => {
+        if (!fileUrl || !fileUrl.includes('cloudinary.com')) return;
         try {
-          const urlParts = post.attachmentUrl.split('/');
+          const urlParts = fileUrl.split('/');
           const uploadIndex = urlParts.findIndex(part => part === 'upload');
           
           if (uploadIndex !== -1) {
-            // 1. Get the path after the version number
             const publicIdWithExt = urlParts.slice(uploadIndex + 2).join('/'); 
-            
-            // 2. FORCE strip the extension (.pdf, .jpg, etc.) to match the exact Public ID
             const lastDotIndex = publicIdWithExt.lastIndexOf('.');
             const publicId = lastDotIndex !== -1 ? publicIdWithExt.substring(0, lastDotIndex) : publicIdWithExt;
 
-            console.log(`Attempting to delete Cloudinary file: ${publicId}`);
-
-            // 3. Double-Tap Delete: Try 'raw' first (new posts)
             let cloudResult = await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
-            
-            // 4. If not found, it might be an older post uploaded as an 'image'
             if (cloudResult.result === 'not found') {
-              console.log("Not found as raw, trying as image...");
-              cloudResult = await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
+              await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
             }
-
-            console.log("Final Cloudinary deletion result:", cloudResult);
           }
         } catch (cloudErr) {
           console.error("Cloudinary cleanup error:", cloudErr);
         }
+      };
+
+      // 3. Delete the Post's attachment from Cloudinary (if it exists)
+      await deleteFileFromCloudinary(post.attachmentUrl);
+
+      // 4. CASCADE DELETE: Find and delete all student submissions for this post
+      const submissions = await Submission.find({ postId: post._id });
+      
+      for (const submission of submissions) {
+        // Delete the submission's uploaded file from Cloudinary
+        await deleteFileFromCloudinary(submission.fileUrl);
+        // Delete the submission record from the database
+        await Submission.findByIdAndDelete(submission._id);
       }
 
-      // 4. Delete the post from the database
+      // 5. Finally, delete the post itself from the database
       await Post.findByIdAndDelete(req.params.id);
       
-      res.json({ message: "Post deleted successfully" });
+      res.json({ 
+        message: "Post and all associated submissions deleted successfully",
+        deletedSubmissionsCount: submissions.length 
+      });
+
     } catch (error) {
       console.error("Error deleting post:", error);
       res.status(500).json({ message: "Error deleting post" });

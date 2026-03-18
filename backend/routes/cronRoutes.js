@@ -58,7 +58,9 @@ router.get('/cleanup', async (req, res) => {
     // Calculate the generic cutoff date
     const cutoffDate = new Date(Date.now() - EXPIRATION_DAYS * 24 * 60 * 60 * 1000);
 
-    // Find posts older than the cutoff date
+    // ==========================================
+    // PHASE 1: CLEANUP POSTS & THEIR SUBMISSIONS
+    // ==========================================
     const oldPosts = await Post.find({ createdAt: { $lt: cutoffDate } });
 
     for (const post of oldPosts) {
@@ -76,7 +78,23 @@ router.get('/cleanup', async (req, res) => {
       await Post.findByIdAndDelete(post._id);
     }
 
-    res.status(200).json({ message: `Cleanup success! Deleted ${oldPosts.length} posts.` });
+    // ==========================================
+    // PHASE 2: CATCH ORPHANED SUBMISSIONS
+    // ==========================================
+    // If a post was deleted manually but submissions were left behind (loophole)
+    const orphanedSubmissions = await Submission.find({ submittedAt: { $lt: cutoffDate } });
+    
+    for (const orphan of orphanedSubmissions) {
+       // Delete the orphan's file from Cloudinary
+       if (orphan.fileUrl) await deleteFromCloudinary(orphan.fileUrl);
+       // Delete the orphan from MongoDB
+       await Submission.findByIdAndDelete(orphan._id);
+    }
+
+    res.status(200).json({ 
+      message: `Cleanup success! Deleted ${oldPosts.length} posts and ${orphanedSubmissions.length} orphaned submissions.` 
+    });
+    
   } catch (error) {
     console.error("Cron Error:", error);
     res.status(500).json({ message: "Cron job failed" });
