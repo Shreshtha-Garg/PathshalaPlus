@@ -53,7 +53,7 @@ router.get('/cleanup', async (req, res) => {
 
   try {
     // 1. Set your generic timeframe here
-    const EXPIRATION_DAYS = 7; 
+    const EXPIRATION_DAYS = 45; 
     
     // Calculate the generic cutoff date
     const cutoffDate = new Date(Date.now() - EXPIRATION_DAYS * 24 * 60 * 60 * 1000);

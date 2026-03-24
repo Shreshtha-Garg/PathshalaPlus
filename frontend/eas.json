@@ -9,7 +9,14 @@
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://pathshala-plus.vercel.app/api",
+        "EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME": "det9nnjk3"
+      }
     },
     "production": {
       "autoIncrement": true
